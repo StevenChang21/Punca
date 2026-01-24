@@ -18,7 +18,11 @@ class StudentDashboard extends StatelessWidget {
             ),
             Text(
               "Ready to learn something new?",
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary, fontWeight: FontWeight.normal),
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.normal,
+              ),
             ),
           ],
         ),
@@ -59,7 +63,7 @@ class StudentDashboard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
+            color: AppColors.primary.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -79,19 +83,16 @@ class StudentDashboard extends StatelessWidget {
           const SizedBox(height: 8),
           const Text(
             "Snap a photo and get instant AI-powered help and a personalized study plan.",
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
           const SizedBox(height: 20),
           ElevatedButton.icon(
             onPressed: () {
-               // We can either push the screen or switch tabs. 
-               // For a "Scanner", pushing a fullscreen modal often feels better.
-               Navigator.of(context).push(
-                 MaterialPageRoute(builder: (_) => const CameraScreen()),
-               );
+              // We can either push the screen or switch tabs.
+              // For a "Scanner", pushing a fullscreen modal often feels better.
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const CameraScreen()));
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accent,
@@ -132,7 +133,7 @@ class StudentDashboard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,10 +148,7 @@ class StudentDashboard extends StatelessWidget {
               color: AppColors.textPrimary,
             ),
           ),
-          Text(
-            label,
-            style: const TextStyle(color: AppColors.textSecondary),
-          ),
+          Text(label, style: const TextStyle(color: AppColors.textSecondary)),
         ],
       ),
     );
@@ -163,7 +161,7 @@ class StudentDashboard extends StatelessWidget {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
+            color: AppColors.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: const Icon(Icons.description, color: AppColors.primary),
