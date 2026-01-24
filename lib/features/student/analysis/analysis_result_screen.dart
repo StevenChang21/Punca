@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/features/student/analysis/roadmap_screen.dart';
+import 'package:punca_ai/features/student/analysis/remediation_screen.dart';
 
 import 'dart:io';
 
@@ -36,39 +37,79 @@ class AnalysisResultScreen extends StatelessWidget {
             _buildConfidenceBuilder(confidenceBuilder),
             const SizedBox(height: 24),
             const Text(
-              "Weakness Analysis (Tap to view)",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              "Diagnostic Report",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             if (weaknesses.isEmpty)
               const Text("No specific weaknesses identified! Great job!")
-            else
-              ...weaknesses.map(
-                (w) => _buildWeaknessItem(
-                  context,
-                  w['topic'] ?? 'Unknown',
-                  w['reason'] ?? 'Needs review',
-                  Colors.redAccent,
-                  w['bounding_box'],
-                ),
+            else ...[
+              _buildGapSection(
+                context,
+                "Foundation Gaps (Red)",
+                weaknesses.where((w) => w['gap_type'] == 'foundation').toList(),
+                Colors.red,
+                "The Foundation Gap",
               ),
-            const SizedBox(height: 24),
+              _buildGapSection(
+                context,
+                "Execution Gaps (Orange)",
+                weaknesses.where((w) => w['gap_type'] == 'execution').toList(),
+                Colors.orange,
+                "The Execution Gap",
+              ),
+              _buildGapSection(
+                context,
+                "Precision Gaps (Yellow)",
+                weaknesses.where((w) => w['gap_type'] == 'precision').toList(),
+                Colors.amber,
+                "The Precision Gap",
+              ),
+              // Fallback for uncategorized items
+              if (weaknesses.any((w) => w['gap_type'] == null))
+                _buildGapSection(
+                  context,
+                  "General Improvements",
+                  weaknesses.where((w) => w['gap_type'] == null).toList(),
+                  Colors.grey,
+                  "General",
+                ),
+            ],
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          RoadmapScreen(roadmapData: result['roadmap'] ?? []),
-                    ),
-                  );
+                  // Safely cast or default to empty list logic
+                  final drills = result['remediation_drills'] ?? [];
+                  if (drills.isEmpty && result['roadmap'] != null) {
+                    // Fallback to old roadmap if AI returned that format
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            RoadmapScreen(roadmapData: result['roadmap']),
+                      ),
+                    );
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => RemediationScreen(drills: drills),
+                      ),
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: const Text("View Generated Roadmap"),
+                child: const Text(
+                  "Start Active Drills (Personal Trainer)",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ],
@@ -156,10 +197,59 @@ class AnalysisResultScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildGapSection(
+    BuildContext context,
+    String title,
+    List<dynamic> items,
+    Color color,
+    String subtitle,
+  ) {
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.circle, color: color, size: 12),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 20, bottom: 8),
+          child: Text(
+            subtitle,
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+        ),
+        ...items.map(
+          (w) => _buildWeaknessItem(
+            context,
+            w['topic'] ?? 'Unknown',
+            w['reason'] ?? 'Needs review',
+            w['action'],
+            color,
+            w['bounding_box'],
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
   Widget _buildWeaknessItem(
     BuildContext context,
     String topic,
     String reason,
+    String? action,
     Color color,
     dynamic boundingBox,
   ) {
@@ -172,7 +262,7 @@ class AnalysisResultScreen extends StatelessWidget {
           _showMistakeOnImage(context, topic, boundingBox.cast<int>());
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("No location data for this issue.")),
+            const SnackBar(content: Text("No visual location data available.")),
           );
         }
       },
@@ -182,24 +272,22 @@ class AnalysisResultScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
+              color: color.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 4,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(2),
-              ),
+            const Icon(
+              Icons.warning_amber_rounded,
+              size: 20,
+              color: Colors.grey,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -213,29 +301,59 @@ class AnalysisResultScreen extends StatelessWidget {
                           topic,
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: 15,
                           ),
                         ),
                       ),
-                      const Icon(
-                        Icons.visibility,
-                        size: 16,
-                        color: Colors.grey,
-                      ), // Hint to tap
+                      if (boundingBox != null &&
+                          boundingBox is List &&
+                          boundingBox.isNotEmpty)
+                        const Icon(
+                          Icons.visibility,
+                          size: 16,
+                          color: AppColors.primary,
+                        ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Text(
                     reason,
                     style: const TextStyle(
-                      color: AppColors.textSecondary,
+                      color: AppColors.textPrimary,
                       fontSize: 14,
                     ),
                   ),
+                  if (action != null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.bolt, size: 14, color: color),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              "Action: $action",
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: color.withValues(
+                                  alpha: 0.9,
+                                ), // Darker text for readability
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
           ],
         ),
       ),
