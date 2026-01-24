@@ -226,7 +226,8 @@ class CameraScreen extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => AnalysisResultScreen(result: result),
+            builder: (_) =>
+                AnalysisResultScreen(result: result, imagePath: imagePath),
           ),
         );
       } catch (e) {
