@@ -2,8 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/features/student/analysis/analysis_result_screen.dart';
 
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+
 class CameraScreen extends StatelessWidget {
   const CameraScreen({super.key});
+
+  Future<void> _pickImage(BuildContext context) async {
+    final ImagePicker picker = ImagePicker();
+    try {
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image != null && context.mounted) {
+        _showProcessingMock(context, imagePath: image.path);
+      }
+    } catch (e) {
+      debugPrint("Error picking image: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +45,7 @@ class CameraScreen extends StatelessWidget {
               ),
             ),
           ),
-          
+
           // Guidelines Overlay
           Positioned(
             top: 100,
@@ -70,9 +85,13 @@ class CameraScreen extends StatelessWidget {
                   children: [
                     IconButton(
                       onPressed: () {
-                         Navigator.pop(context);
+                        Navigator.pop(context);
                       },
-                      icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 30,
+                      ),
                     ),
                     GestureDetector(
                       onTap: () {
@@ -85,33 +104,45 @@ class CameraScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.primary, width: 4),
+                          border: Border.all(
+                            color: AppColors.primary,
+                            width: 4,
+                          ),
                         ),
                       ),
                     ),
                     IconButton(
-                      onPressed: () {},
-                      icon: const Icon(Icons.image, color: Colors.white, size: 30),
+                      onPressed: () => _pickImage(context),
+                      icon: const Icon(
+                        Icons.image,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                      tooltip: "Pick from Gallery",
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
-                const Text("Tap to Snap", style: TextStyle(color: Colors.white70)),
+                const Text(
+                  "Tap to Snap",
+                  style: TextStyle(color: Colors.white70),
+                ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
-  void _showProcessingMock(BuildContext context) {
+  void _showProcessingMock(BuildContext context, {String? imagePath}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.5,
+        height: MediaQuery.of(context).size.height * 0.6,
+        padding: const EdgeInsets.all(24),
         decoration: const BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -119,6 +150,21 @@ class CameraScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            if (imagePath != null) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.file(
+                  File(imagePath),
+                  height: 150,
+                  width: 150,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(height: 24),
+            ] else ...[
+              const Icon(Icons.description, size: 80, color: Colors.grey),
+              const SizedBox(height: 24),
+            ],
             const CircularProgressIndicator(color: AppColors.primary),
             const SizedBox(height: 24),
             const Text(
@@ -133,11 +179,13 @@ class CameraScreen extends StatelessWidget {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const AnalysisResultScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const AnalysisResultScreen(),
+                  ),
                 );
               },
               child: const Text("View Results (Mock)"),
-            )
+            ),
           ],
         ),
       ),
