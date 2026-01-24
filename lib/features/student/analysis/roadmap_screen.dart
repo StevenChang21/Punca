@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 
 class RoadmapScreen extends StatelessWidget {
-  const RoadmapScreen({super.key});
+  final List<dynamic> roadmapData;
+
+  const RoadmapScreen({super.key, required this.roadmapData});
 
   @override
   Widget build(BuildContext context) {
@@ -16,13 +18,11 @@ class RoadmapScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(
-                  0.05,
-                ), // ignore: deprecated_member_use
+                color: AppColors.primary.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: AppColors.primary.withOpacity(0.2),
-                ), // ignore: deprecated_member_use
+                  color: AppColors.primary.withValues(alpha: 0.2),
+                ),
               ),
               child: const Row(
                 children: [
@@ -30,7 +30,7 @@ class RoadmapScreen extends StatelessWidget {
                   SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      "Focus on Algebra first. Mastering this will unlock Geometry understanding.",
+                      "This roadmap is prioritized based on your analysis results. Focus on high-impact areas first.",
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.textPrimary,
@@ -41,27 +41,21 @@ class RoadmapScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            _buildRoadmapItem(
-              "1. Algebra Basics",
-              "Critical Foundation",
-              "High Impact",
-              Icons.lock_open,
-              true,
-            ),
-            _buildRoadmapItem(
-              "2. Linear Equations",
-              "You made 2 mistakes here",
-              "Medium Impact",
-              Icons.lock_outline,
-              false,
-            ),
-            _buildRoadmapItem(
-              "3. Geometry Props",
-              "Dependent on Algebra",
-              "Low Priority",
-              Icons.lock_outline,
-              false,
-            ),
+            if (roadmapData.isEmpty)
+              const Center(child: Text("No roadmap items generated."))
+            else
+              ...roadmapData.map((item) {
+                final title = item['title'] ?? 'Unknown Step';
+                final description = item['description'] ?? '';
+                final impact = item['impact'] ?? 'Medium';
+                return _buildRoadmapItem(
+                  title,
+                  description,
+                  impact,
+                  impact == 'High' ? Icons.lock_open : Icons.lock_outline,
+                  impact == 'High',
+                );
+              }),
           ],
         ),
       ),
@@ -88,9 +82,7 @@ class RoadmapScreen extends StatelessWidget {
         boxShadow: isActive
             ? [
                 BoxShadow(
-                  color: AppColors.accent.withOpacity(
-                    0.2,
-                  ), // ignore: deprecated_member_use
+                  color: AppColors.accent.withValues(alpha: 0.2),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -133,8 +125,8 @@ class RoadmapScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: isActive
-                  ? AppColors.primary.withOpacity(0.1)
-                  : Colors.transparent, // ignore: deprecated_member_use
+                  ? AppColors.primary.withValues(alpha: 0.1)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(

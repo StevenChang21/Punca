@@ -3,10 +3,18 @@ import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/features/student/analysis/roadmap_screen.dart';
 
 class AnalysisResultScreen extends StatelessWidget {
-  const AnalysisResultScreen({super.key});
+  final Map<String, dynamic> result;
+
+  const AnalysisResultScreen({super.key, required this.result});
 
   @override
   Widget build(BuildContext context) {
+    final List<dynamic> weaknesses = result['weaknesses'] ?? [];
+    final String confidenceBuilder =
+        result['confidence_builder'] ?? "Great effort! Keep practicing.";
+    final String grade = result['grade'] ?? "N/A";
+    final String subject = result['subject'] ?? "Math";
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Analysis Result"),
@@ -20,30 +28,38 @@ class AnalysisResultScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildScoreCard(),
+            _buildScoreCard(grade, subject),
             const SizedBox(height: 24),
-            _buildConfidenceBuilder(),
+            _buildConfidenceBuilder(confidenceBuilder),
             const SizedBox(height: 24),
             const Text(
               "Weakness Analysis",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            _buildWeaknessItem(
-              "Algebra - Linear Equations",
-              "Conceptual Error",
-              Colors.redAccent,
-            ),
-            _buildWeaknessItem(
-              "Geometry - Triangles",
-              "Careless Mistake",
-              Colors.orangeAccent,
-            ),
+            if (weaknesses.isEmpty)
+              const Text("No specific weaknesses identified! Great job!")
+            else
+              ...weaknesses.map(
+                (w) => _buildWeaknessItem(
+                  w['topic'] ?? 'Unknown',
+                  w['reason'] ?? 'Needs review',
+                  Colors.redAccent,
+                ),
+              ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          RoadmapScreen(roadmapData: result['roadmap'] ?? []),
+                    ),
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                 ),
@@ -56,34 +72,39 @@ class AnalysisResultScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildScoreCard() {
+  Widget _buildScoreCard(String grade, String subject) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
       ),
-      child: const Row(
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Math - Form 4",
-                style: TextStyle(color: AppColors.textSecondary),
-              ),
-              SizedBox(height: 4),
-              Text(
-                "Paper 1 Mock",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "$subject - Assessment",
+                  style: const TextStyle(color: AppColors.textSecondary),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  "Paper Analysis",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
           Text(
-            "65%",
-            style: TextStyle(
+            grade,
+            style: const TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
               color: AppColors.primary,
@@ -94,17 +115,17 @@ class AnalysisResultScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildConfidenceBuilder() {
+  Widget _buildConfidenceBuilder(String message) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.accent.withOpacity(0.1), Colors.white],
+          colors: [AppColors.accent.withValues(alpha: 0.1), Colors.white],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.accent.withOpacity(0.5)),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,11 +135,9 @@ class AnalysisResultScreen extends StatelessWidget {
               const Icon(Icons.star, color: AppColors.accent),
               const SizedBox(width: 8),
               Text(
-                "Great Start!",
+                "Confidence Check",
                 style: TextStyle(
-                  color: AppColors.accent.withOpacity(
-                    0.8,
-                  ), // Darker accent for text
+                  color: AppColors.accent.withValues(alpha: 0.8),
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
@@ -126,10 +145,7 @@ class AnalysisResultScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          const Text(
-            "You attempted Question 3 (Algebra) and your logic was halfway there! Let's focus on mastering this first.",
-            style: TextStyle(fontSize: 15, height: 1.4),
-          ),
+          Text(message, style: const TextStyle(fontSize: 15, height: 1.4)),
         ],
       ),
     );
@@ -142,7 +158,7 @@ class AnalysisResultScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [

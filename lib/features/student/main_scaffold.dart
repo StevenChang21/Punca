@@ -16,7 +16,7 @@ class _MainScaffoldState extends State<MainScaffold> {
   final List<Widget> _screens = [
     const StudentDashboard(),
     const CameraScreen(),
-    const RoadmapScreen(),
+    const RoadmapScreen(roadmapData: []),
     const Center(child: Text("Profile (Placeholder)")), // Temp
   ];
 
