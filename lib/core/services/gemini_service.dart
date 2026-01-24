@@ -34,13 +34,14 @@ class GeminiService {
             "  \"grade\": \"<Approximate Grade/Score like '65%' or 'B+'>\","
             "  \"topics_identified\": [\"<Topic 1>\", \"<Topic 2>\"],"
             "  \"weaknesses\": ["
-            "    {\"topic\": \"<Weak Topic>\", \"reason\": \"<Brief reason why>\"}"
+            "    {\"topic\": \"<Weak Topic>\", \"reason\": \"<Brief reason why>\", \"bounding_box\": [ymin, xmin, ymax, xmax] } " // integers 0-1000
             "  ],"
             "  \"confidence_builder\": \"<A short, encouraging comment about a correct attempt>\","
             "  \"roadmap\": ["
             "    {\"title\": \"<Step 1>\", \"description\": \"<Short description>\", \"impact\": \"High\"}"
             "  ]"
-            "}",
+            "}"
+            "For bounding_box, use [ymin, xmin, ymax, xmax] integers on a 0-1000 scale. If specific location is hard to pinpoint, use null or []",
           ),
           DataPart('image/jpeg', imageBytes),
         ]),
