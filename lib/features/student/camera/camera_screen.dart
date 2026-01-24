@@ -3,7 +3,10 @@ import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/features/student/analysis/analysis_result_screen.dart';
 
 import 'dart:io';
+import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
+
+import 'package:punca_ai/core/services/gemini_service.dart';
 
 class CameraScreen extends StatelessWidget {
   const CameraScreen({super.key});
@@ -136,10 +139,17 @@ class CameraScreen extends StatelessWidget {
   }
 
   void _showProcessingMock(BuildContext context, {String? imagePath}) {
+    // Start analysis immediately if image is provided
+    if (imagePath != null) {
+      _analyzeImage(context, imagePath);
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      enableDrag: false, // Prevent dismissing while analyzing
+      isDismissible: false,
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.6,
         padding: const EdgeInsets.all(24),
@@ -168,26 +178,81 @@ class CameraScreen extends StatelessWidget {
             const CircularProgressIndicator(color: AppColors.primary),
             const SizedBox(height: 24),
             const Text(
-              "Analyzing your work...",
+              "Analyzing your work using Gemini...",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text("Identifying key concepts and mistakes..."),
             const SizedBox(height: 32),
+
+            // Hidden button, we auto-navigate now
+            /*
             ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const AnalysisResultScreen(),
-                  ),
-                );
-              },
-              child: const Text("View Results (Mock)"),
-            ),
+              onPressed: () {},
+              child: const Text("Processing..."),
+            )
+            */
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _analyzeImage(BuildContext context, String imagePath) async {
+    final service = GeminiService();
+    // Delay slightly to allow UI to build
+    await Future.delayed(const Duration(seconds: 1));
+
+    // ignore: use_build_context_synchronously
+    if (!context.mounted) return;
+
+    final resultStr = await service.analyzeImage(imagePath);
+
+    // ignore: use_build_context_synchronously
+    if (!context.mounted) return;
+    Navigator.pop(context); // Close loading sheet
+
+    if (resultStr != null && !resultStr.startsWith("Error")) {
+      try {
+        // Clean markdown code blocks if present data
+        var cleanJson = resultStr
+            .replaceAll('```json', '')
+            .replaceAll('```', '');
+        final Map<String, dynamic> result = jsonDecode(cleanJson);
+
+        // ignore: use_build_context_synchronously
+        if (!context.mounted) return;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AnalysisResultScreen(result: result),
+          ),
+        );
+      } catch (e) {
+        debugPrint("Error parsing JSON: $e");
+        _showError(
+          context,
+          "Failed to parse analysis results. \nRow output: $resultStr",
+        );
+      }
+    } else {
+      _showError(context, resultStr ?? "Unknown error occurred");
+    }
+  }
+
+  void _showError(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Analysis Error"),
+        content: SingleChildScrollView(child: Text(message)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK"),
+          ),
+        ],
       ),
     );
   }
