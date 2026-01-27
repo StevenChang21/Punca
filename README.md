@@ -2,6 +2,22 @@
 
 A new Flutter project.
 
+## Setup & API Keys
+
+To run this project, you need a Google AI Studio API key.
+
+1.  **Get your API Key**:
+    - Go to [Google AI Studio](https://aistudio.google.com/).
+    - Create an API key.
+
+2.  **Configure `.env`**:
+    - In the project root, duplicate `.env.example` and rename it to `.env`.
+    - Open `.env` and paste your key:
+      ```
+      GEMINI_API_KEY=your_actual_api_key_here
+      ```
+    - **Note**: The `.env` file is ignored by git to keep your key secure. Do not commit it.
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.

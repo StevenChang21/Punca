@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/features/student/main_scaffold.dart';
 
-void main() {
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+Future<void> main() async {
+  await dotenv.load(fileName: ".env");
   runApp(const PuncaApp());
 }
 
