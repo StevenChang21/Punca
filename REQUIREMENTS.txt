@@ -1,0 +1,39 @@
+# Punca AI - Project Requirements
+
+## Project Overview
+**Punca AI** is an AI-powered educational mobile application designed to help students identify and improve their academic weaknesses. By leveraging Google's Gemini AI, the app analyzes student work, detects knowledge gaps, and provides personalized study roadmaps. This project supports SDG 4 (Quality Education) by making personalized tutoring accessible.
+
+## Functional Requirements
+1.  **Weakness Analysis**:
+    - Users can upload images of their homework or exam papers.
+    - The AI analyzes the image to identify specific topics or concepts the student is struggling with.
+2.  **Personalized Roadmap**:
+    - Based on the analysis, the app generates a tailored study plan.
+    - Suggests specific resources or practice problems.
+3.  **Step-Down Learning**:
+    - If a student fails a complex problem, the app provides "step-down" questions to reinforce foundational concepts first.
+4.  **Dashboards**:
+    - **Student View**: Progress tracking and weakness visualization.
+    - **Educator/Parent View**: Aggregated insights into student performance.
+
+## Technical Stack
+-   **Frontend**: Flutter (Dart)
+-   **AI Model**: Google Gemini (via Google AI Studio)
+-   **Backend/Database**: Firebase (Planned)
+-   **Platform**: iOS & Android
+
+## Dependencies (Flutter)
+Core packages used in this project:
+
+-   `flutter`: SDK
+-   `cupertino_icons`: ^1.0.8 - iOS style icons
+-   `image_picker`: ^1.2.1 - Selecting images from gallery/camera
+-   `cross_file`: ^0.3.5+1 - Abstraction for file access
+-   `google_generative_ai`: ^0.4.7 - Google AI Studio SDK for Dart
+-   `flutter_lints`: ^3.0.0 - Linter rules
+
+## Setup Instructions
+1.  Ensure Flutter SDK is installed.
+2.  Run `flutter pub get` to install dependencies.
+3.  Run `open ios/Runner.xcworkspace` (macOS) to configure signing.
+4.  Run `flutter run` to start the app.
