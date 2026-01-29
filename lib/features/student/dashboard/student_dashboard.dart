@@ -16,7 +16,7 @@ class StudentDashboard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Hello, Student 👋",
+              "Hello, Student 👋", //TODO: Display student's name
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             Text(

@@ -13,59 +13,67 @@ class GeminiService {
     );
   }
 
-  Future<String?> analyzeImage(String imagePath) async {
+  Future<String?> analyzeImages(List<String> imagePaths) async {
     try {
-      final imageFile = File(imagePath);
-      if (!await imageFile.exists()) {
-        return "Error: Image file not found";
+      final List<Part> parts = [];
+
+      // Add the text prompt first
+      parts.add(
+        TextPart(
+          "You are an expert Math Tutor AI specialized in the Malaysian KSSM Syllabus. "
+          "Analyze these sequential pages of a student's work. "
+          "First, check if these images contain a math exam paper, worksheet, or handwritten math problem. "
+          "If the content is NOT related to math or education (e.g. selfis, scenery), return this JSON: "
+          "{\"subject\": \"Not Relevant\", \"grade\": \"N/A\", \"confidence_builder\": \"Please upload clear images of a math problem.\", \"weaknesses\": [], \"roadmap\": []}"
+          "\n\n"
+          "If it IS a math paper, analyze it using the following syllabus as context:\n"
+          "${KssmSyllabus.mathSyllabus}\n\n"
+          "Identify mistakes and categorize them into 3 specific Newman's Analysis buckets:\n"
+          "1. 'foundation': Concept errors (didn't know which tool to use).\n"
+          "2. 'execution': Process errors (right tool, used wrongly).\n"
+          "3. 'precision': Careless errors (reading/encoding mistakes).\n\n"
+          "Provide the output in this EXACT JSON format (no markdown code blocks):"
+          "{"
+          "  \"subject\": \"Math\","
+          "  \"grade\": \"<Approximate Grade/Score like '65%' or 'B+'>\","
+          "  \"topics_identified\": [\"<Topic 1>\", \"<Topic 2>\"],"
+          "  \"weaknesses\": ["
+          "    {"
+          "      \"topic\": \"<Weak Topic>\","
+          "      \"reason\": \"<Brief reason why>\","
+          "      \"gap_type\": \"<Choose one: 'foundation', 'execution', 'precision'>\","
+          "      \"action\": \"<Actionable advice referencing a specific KSSM Chapter if applicable>\","
+          "      \"bounding_box\": [ymin, xmin, ymax, xmax] (Optional, referencing the first page found)"
+          "    }"
+          "  ],"
+          "  \"confidence_builder\": \"<A short, encouraging comment about a correct attempt>\","
+          "  \"remediation_drills\": ["
+          "    {"
+          "      \"drill_title\": \"<Verb-driven title e.g. 'Drill: Fix inequality logic'>\","
+          "      \"mini_lesson\": \"<1-2 sentences explaining the concept clearly>\","
+          "      \"twin_question\": \"<A NEW question with same logic but different numbers/context>\","
+          "      \"correct_answer\": \"<The short correct answer for verification>\","
+          "      \"options\": [\"<Option A>\", \"<Option B>\", \"<Option C>\"]"
+          "    }"
+          "  ]"
+          "}",
+        ),
+      );
+
+      // Add all images
+      for (String path in imagePaths) {
+        final file = File(path);
+        if (await file.exists()) {
+          final bytes = await file.readAsBytes();
+          parts.add(DataPart('image/jpeg', bytes));
+        }
       }
 
-      final imageBytes = await imageFile.readAsBytes();
-      final content = [
-        Content.multi([
-          TextPart(
-            "You are an expert Math Tutor AI specialized in the Malaysian KSSM Syllabus. "
-            "First, check if this image is a math exam paper, worksheet, or handwritten math problem. "
-            "If it is NOT related to math or education (e.g. a selfie, scenery, random object), return this JSON: "
-            "{\"subject\": \"Not Relevant\", \"grade\": \"N/A\", \"confidence_builder\": \"Please upload a clear image of a math problem.\", \"weaknesses\": [], \"roadmap\": []}"
-            "\n\n"
-            "If it IS a math paper, analyze it using the following syllabus as context:\n"
-            "${KssmSyllabus.mathSyllabus}\n\n"
-            "Identify mistakes and categorize them into 3 specific Newman's Analysis buckets:\n"
-            "1. 'foundation': Concept errors (didn't know which tool to use).\n"
-            "2. 'execution': Process errors (right tool, used wrongly).\n"
-            "3. 'precision': Careless errors (reading/encoding mistakes).\n\n"
-            "Provide the output in this EXACT JSON format (no markdown code blocks):"
-            "{"
-            "  \"subject\": \"Math\","
-            "  \"grade\": \"<Approximate Grade/Score like '65%' or 'B+'>\","
-            "  \"topics_identified\": [\"<Topic 1>\", \"<Topic 2>\"],"
-            "  \"weaknesses\": ["
-            "    {"
-            "      \"topic\": \"<Weak Topic>\","
-            "      \"reason\": \"<Brief reason why>\","
-            "      \"gap_type\": \"<Choose one: 'foundation', 'execution', 'precision'>\","
-            "      \"action\": \"<Actionable advice referencing a specific KSSM Chapter if applicable>\","
-            "      \"bounding_box\": [ymin, xmin, ymax, xmax]"
-            "    }"
-            "  ],"
-            "  \"confidence_builder\": \"<A short, encouraging comment about a correct attempt>\","
-            "  \"remediation_drills\": ["
-            "    {"
-            "      \"drill_title\": \"<Verb-driven title e.g. 'Drill: Fix inequality logic'>\","
-            "      \"mini_lesson\": \"<1-2 sentences explaining the concept clearly>\","
-            "      \"twin_question\": \"<A NEW question with same logic but different numbers/context>\","
-            "      \"correct_answer\": \"<The short correct answer for verification>\","
-            "      \"options\": [\"<Option A>\", \"<Option B>\", \"<Option C>\"]" // Optional, if MCQ is better
-            "    }"
-            "  ]"
-            "}"
-            "For bounding_box, use [ymin, xmin, ymax, xmax] integers on a 0-1000 scale. If specific location is hard to pinpoint, use null or []"
-            "Task: For each drill, generate a 'Twin Question' (Isomorphic Problem). Verify if they understood the correction. Keep difficulty identical.",
-          ),
-          DataPart('image/jpeg', imageBytes),
-        ]),
-      ];
+      if (parts.length == 1) {
+        return "Error: No valid images found to analyze.";
+      }
+
+      final content = [Content.multi(parts)];
 
       try {
         final response = await _model.generateContent(content);

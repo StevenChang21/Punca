@@ -1,23 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/features/student/analysis/roadmap_screen.dart';
-import 'package:punca_ai/features/student/analysis/remediation_screen.dart';
-
 import 'dart:io';
 
 class AnalysisResultScreen extends StatelessWidget {
   final Map<String, dynamic> result;
-  final String? imagePath;
+  final String? imagePath; // Legacy support
+  final List<String>? imagePaths; // New multi-page support
 
-  const AnalysisResultScreen({super.key, required this.result, this.imagePath});
+  const AnalysisResultScreen({
+    super.key,
+    required this.result,
+    this.imagePath,
+    this.imagePaths,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final List<dynamic> weaknesses = result['weaknesses'] ?? [];
+    // Safely extract data with fallbacks
+    final String subject = result['subject'] ?? "Assessment";
+    final String grade = result['grade'] ?? "Pending";
     final String confidenceBuilder =
-        result['confidence_builder'] ?? "Great effort! Keep practicing.";
-    final String grade = result['grade'] ?? "N/A";
-    final String subject = result['subject'] ?? "Math";
+        result['confidence_builder'] ?? "Good effort! Keep practicing.";
+    final List<dynamic> weaknesses = result['weaknesses'] ?? [];
+
+    // Normalize images list
+    final List<String> images =
+        imagePaths ?? (imagePath != null ? [imagePath!] : []);
 
     return Scaffold(
       appBar: AppBar(
@@ -32,72 +41,65 @@ class AnalysisResultScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildScoreCard(grade, subject),
+            _buildScoreCard(subject, grade),
             const SizedBox(height: 24),
             _buildConfidenceBuilder(confidenceBuilder),
             const SizedBox(height: 24),
-            const Text(
-              "Diagnostic Report",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            if (weaknesses.isEmpty)
-              const Text("No specific weaknesses identified! Great job!")
-            else ...[
-              _buildGapSection(
-                context,
-                "Foundation Gaps (Red)",
-                weaknesses.where((w) => w['gap_type'] == 'foundation').toList(),
-                Colors.red,
-                "The Foundation Gap",
-              ),
-              _buildGapSection(
-                context,
-                "Execution Gaps (Orange)",
-                weaknesses.where((w) => w['gap_type'] == 'execution').toList(),
-                Colors.orange,
-                "The Execution Gap",
-              ),
-              _buildGapSection(
-                context,
-                "Precision Gaps (Yellow)",
-                weaknesses.where((w) => w['gap_type'] == 'precision').toList(),
-                Colors.amber,
-                "The Precision Gap",
-              ),
-              // Fallback for uncategorized items
-              if (weaknesses.any((w) => w['gap_type'] == null))
-                _buildGapSection(
-                  context,
-                  "General Improvements",
-                  weaknesses.where((w) => w['gap_type'] == null).toList(),
-                  Colors.grey,
-                  "General",
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Weakness Analysis",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-            ],
+                if (images.isNotEmpty)
+                  TextButton.icon(
+                    icon: const Icon(
+                      Icons.collections,
+                      color: AppColors.primary,
+                    ),
+                    label: Text(
+                      "View ${images.length > 1 ? 'Pages (${images.length})' : 'Page'}",
+                    ),
+                    onPressed: () => _showImages(context, images),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (weaknesses.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: Text(
+                    "No specific weaknesses identified! Great job!",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+              )
+            else
+              ...weaknesses.map((w) {
+                final topic = w['topic'] ?? "General";
+                final reason = w['reason'] ?? "Concept review needed";
+                final type = w['gap_type'] ?? "foundation";
+                return _buildWeaknessItem(
+                  topic,
+                  reason,
+                  _getColorForType(type),
+                );
+              }),
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  // Safely cast or default to empty list logic
-                  final drills = result['remediation_drills'] ?? [];
-                  if (drills.isEmpty && result['roadmap'] != null) {
-                    // Fallback to old roadmap if AI returned that format
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            RoadmapScreen(roadmapData: result['roadmap']),
-                      ),
-                    );
-                  } else {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => RemediationScreen(drills: drills),
-                      ),
-                    );
-                  }
+                  // Navigate to Roadmap
+                  final roadmapData = result['roadmap'] ?? [];
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RoadmapScreen(roadmapData: roadmapData),
+                    ),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
@@ -107,7 +109,7 @@ class AnalysisResultScreen extends StatelessWidget {
                   ),
                 ),
                 child: const Text(
-                  "Start Active Drills (Personal Trainer)",
+                  "View Generated Roadmap",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -118,7 +120,66 @@ class AnalysisResultScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildScoreCard(String grade, String subject) {
+  Color _getColorForType(String type) {
+    switch (type.toLowerCase()) {
+      case 'foundation':
+        return Colors.redAccent;
+      case 'execution':
+        return Colors.orangeAccent;
+      case 'precision':
+        return Colors.amber;
+      default:
+        return Colors.blueGrey;
+    }
+  }
+
+  void _showImages(BuildContext context, List<String> paths) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Original Work (${paths.length} pages)",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 400,
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: paths.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16.0),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(File(paths[index])),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScoreCard(String subject, String grade) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -134,7 +195,7 @@ class AnalysisResultScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "$subject - Assessment",
+                  subject,
                   style: const TextStyle(color: AppColors.textSecondary),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -142,12 +203,10 @@ class AnalysisResultScreen extends StatelessWidget {
                 const Text(
                   "Paper Analysis",
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
           Text(
             grade,
             style: const TextStyle(
@@ -197,254 +256,50 @@ class AnalysisResultScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGapSection(
-    BuildContext context,
-    String title,
-    List<dynamic> items,
-    Color color,
-    String subtitle,
-  ) {
-    if (items.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.circle, color: color, size: 12),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-        Padding(
-          padding: const EdgeInsets.only(left: 20, bottom: 8),
-          child: Text(
-            subtitle,
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-          ),
-        ),
-        ...items.map(
-          (w) => _buildWeaknessItem(
-            context,
-            w['topic'] ?? 'Unknown',
-            w['reason'] ?? 'Needs review',
-            w['action'],
-            color,
-            w['bounding_box'],
-          ),
-        ),
-        const SizedBox(height: 16),
-      ],
-    );
-  }
-
-  Widget _buildWeaknessItem(
-    BuildContext context,
-    String topic,
-    String reason,
-    String? action,
-    Color color,
-    dynamic boundingBox,
-  ) {
-    return GestureDetector(
-      onTap: () {
-        if (imagePath != null &&
-            boundingBox != null &&
-            boundingBox is List &&
-            boundingBox.length == 4) {
-          _showMistakeOnImage(context, topic, boundingBox.cast<int>());
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("No visual location data available.")),
-          );
-        }
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(
-              Icons.warning_amber_rounded,
-              size: 20,
-              color: Colors.grey,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          topic,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ),
-                      if (boundingBox != null &&
-                          boundingBox is List &&
-                          boundingBox.isNotEmpty)
-                        const Icon(
-                          Icons.visibility,
-                          size: 16,
-                          color: AppColors.primary,
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    reason,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 14,
-                    ),
-                  ),
-                  if (action != null) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.bolt, size: 14, color: color),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              "Action: $action",
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: color.withValues(
-                                  alpha: 0.9,
-                                ), // Darker text for readability
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showMistakeOnImage(BuildContext context, String label, List<int> box) {
-    // Box is [ymin, xmin, ymax, xmax] 0-1000
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            if (imagePath != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: CustomPaint(
-                  foregroundPainter: BoundingBoxPainter(box, label),
-                  child: Image.file(File(imagePath!)),
-                ),
-              ),
-            Positioned(
-              top: 10,
-              right: 10,
-              child: CircleAvatar(
-                backgroundColor: Colors.black54,
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class BoundingBoxPainter extends CustomPainter {
-  final List<int> box; // [ymin, xmin, ymax, xmax]
-  final String label;
-
-  BoundingBoxPainter(this.box, this.label);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.red
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0;
-
-    // Convert 0-1000 scale to pixel coordinates
-    // box: [ymin, xmin, ymax, xmax]
-    final double ymin = (box[0] / 1000) * size.height;
-    final double xmin = (box[1] / 1000) * size.width;
-    final double ymax = (box[2] / 1000) * size.height;
-    final double xmax = (box[3] / 1000) * size.width;
-
-    final rect = Rect.fromLTRB(xmin, ymin, xmax, ymax);
-    canvas.drawRect(rect, paint);
-
-    // Draw label background
-    final textSpan = TextSpan(
-      text: label,
-      style: const TextStyle(
+  Widget _buildWeaknessItem(String topic, String reason, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
         color: Colors.white,
-        fontSize: 14,
-        fontWeight: FontWeight.bold,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 40,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  topic,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  reason,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-
-    final labelRect = Rect.fromLTWH(
-      xmin,
-      ymin - textPainter.height - 4,
-      textPainter.width + 16,
-      textPainter.height + 4,
-    );
-
-    canvas.drawRect(labelRect, Paint()..color = Colors.red);
-
-    textPainter.paint(canvas, Offset(xmin + 8, ymin - textPainter.height - 2));
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

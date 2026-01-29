@@ -24,13 +24,16 @@ class FirebaseService {
   /// Saves the assessment result to Firestore
   Future<void> saveAssessment({
     required String studentId,
-    required String imageUrl,
+    required List<String> imageUrls,
     required Map<String, dynamic> aiAnalysis,
   }) async {
     try {
       await _assessments.add({
         'studentId': studentId,
-        'imageUrl': imageUrl,
+        'imageUrls': imageUrls, // Store list of URLs
+        'imageUrl': imageUrls.isNotEmpty
+            ? imageUrls.first
+            : null, // Legacy support/Thumbnail
         'aiAnalysis': aiAnalysis,
         'createdAt': FieldValue.serverTimestamp(),
         'status': 'completed',
