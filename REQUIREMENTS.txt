@@ -37,3 +37,23 @@ Core packages used in this project:
 2.  Run `flutter pub get` to install dependencies.
 3.  Run `open ios/Runner.xcworkspace` (macOS) to configure signing.
 4.  Run `flutter run` to start the app.
+
+## Firebase Setup (Important)
+If you are setting up this project for the first time:
+
+1.  **Install the CLI**:
+    ```bash
+    npm install -g firebase-tools
+    dart pub global activate flutterfire_cli
+    ```
+2.  **Fix Path (If command not found)**:
+    Add this to your shell config (.zshrc or .bashrc), or run manually:
+    ```bash
+    export PATH="$PATH":"$HOME/.pub-cache/bin"
+    ```
+3.  **Configure Project**:
+    ```bash
+    flutterfire configure
+    ```
+    *Tip: When creating a new project, choose a unique ID (e.g., `punca-ai-app-2025`) to avoid "project_id must be at least 6 characters" or "already exists" errors.*
+
