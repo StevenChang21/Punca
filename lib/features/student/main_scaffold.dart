@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:punca_ai/features/student/dashboard/student_dashboard.dart';
 import 'package:punca_ai/features/student/camera/camera_screen.dart';
 import 'package:punca_ai/features/student/analysis/roadmap_screen.dart';
+import 'package:punca_ai/core/services/auth_service.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -17,7 +18,21 @@ class _MainScaffoldState extends State<MainScaffold> {
     const StudentDashboard(),
     const CameraScreen(),
     const RoadmapScreen(roadmapData: []),
-    const Center(child: Text("Profile (Placeholder)")), // Temp
+    Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text("Profile (Placeholder)"),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: () {
+              AuthService().signOut();
+            },
+            child: const Text("Sign Out"),
+          ),
+        ],
+      ),
+    ),
   ];
 
   @override

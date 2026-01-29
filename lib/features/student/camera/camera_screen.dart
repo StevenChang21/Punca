@@ -7,6 +7,8 @@ import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:punca_ai/core/services/gemini_service.dart';
+import 'package:punca_ai/core/services/firebase_service.dart';
+import 'package:punca_ai/core/services/auth_service.dart';
 
 class CameraScreen extends StatelessWidget {
   const CameraScreen({super.key});
@@ -219,6 +221,47 @@ class CameraScreen extends StatelessWidget {
             .replaceAll('```json', '')
             .replaceAll('```', '');
         final Map<String, dynamic> result = jsonDecode(cleanJson);
+
+        // Upload to Firebase (Background or blocking? blocking for now to ensure data consistency)
+        try {
+          // ignore: use_build_context_synchronously
+          if (context.mounted) {
+            // Optional: Update loading text if we had a state controller?
+            // Since we use a simple dialog, we just wait.
+          }
+
+          final fbService = FirebaseService();
+          final String fileName =
+              "${DateTime.now().millisecondsSinceEpoch}.jpg";
+          final String? imageUrl = await fbService.uploadImage(
+            imagePath,
+            fileName,
+          );
+
+          if (imageUrl != null) {
+            final user = AuthService().currentUser;
+            final studentId = user?.uid ?? "unknown_student";
+            print("Saving assessment for studentId: $studentId");
+
+            await fbService.saveAssessment(
+              studentId: studentId,
+              imageUrl: imageUrl,
+              aiAnalysis: result,
+            );
+            print("Assessment saved successfully!");
+
+            if (result.containsKey('weaknesses') &&
+                result['weaknesses'] is List) {
+              await fbService.saveWeaknesses(
+                studentId: studentId,
+                weaknesses: result['weaknesses'],
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint("Firebase upload failed: $e");
+          // Continue anyway, don't block the user from seeing results
+        }
 
         // ignore: use_build_context_synchronously
         if (!context.mounted) return;

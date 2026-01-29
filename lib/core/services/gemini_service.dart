@@ -8,7 +8,7 @@ class GeminiService {
 
   GeminiService() {
     _model = GenerativeModel(
-      model: 'gemini-2.5-flash', // Optimized for speed/cost
+      model: 'gemini-2.5-flash', // Standard 2026 model
       apiKey: Secrets.geminiApiKey,
     );
   }
@@ -67,8 +67,22 @@ class GeminiService {
         ]),
       ];
 
-      final response = await _model.generateContent(content);
-      return response.text;
+      try {
+        final response = await _model.generateContent(content);
+        return response.text;
+      } catch (e) {
+        if (e.toString().contains('503')) {
+          // Fallback to Flash-Lite if Flash is overloaded
+          print("Gemini 2.5 Flash overloaded, switching to Flash-Lite...");
+          final fallbackModel = GenerativeModel(
+            model: 'gemini-2.5-flash-lite',
+            apiKey: Secrets.geminiApiKey,
+          );
+          final response = await fallbackModel.generateContent(content);
+          return response.text;
+        }
+        rethrow;
+      }
     } catch (e) {
       return "Error analyzing image: $e";
     }
