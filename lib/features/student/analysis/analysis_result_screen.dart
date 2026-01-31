@@ -1,33 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/features/student/analysis/roadmap_screen.dart';
+import 'package:punca_ai/core/models/assessment_model.dart';
 import 'dart:io';
 
 class AnalysisResultScreen extends StatelessWidget {
-  final Map<String, dynamic> result;
-  final String? imagePath; // Legacy support
-  final List<String>? imagePaths; // New multi-page support
+  final AssessmentResult result;
 
-  const AnalysisResultScreen({
-    super.key,
-    required this.result,
-    this.imagePath,
-    this.imagePaths,
-  });
+  const AnalysisResultScreen({super.key, required this.result});
 
   @override
   Widget build(BuildContext context) {
-    // Safely extract data with fallbacks
-    final String subject = result['subject'] ?? "Assessment";
-    final String grade = result['grade'] ?? "Pending";
-    final String confidenceBuilder =
-        result['confidence_builder'] ?? "Good effort! Keep practicing.";
-    final List<dynamic> weaknesses = result['weaknesses'] ?? [];
-
-    // Normalize images list
-    final List<String> images =
-        imagePaths ?? (imagePath != null ? [imagePath!] : []);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text("Analysis Result"),
@@ -41,9 +24,9 @@ class AnalysisResultScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildScoreCard(subject, grade),
+            _buildScoreCard(result.subject, result.grade),
             const SizedBox(height: 24),
-            _buildConfidenceBuilder(confidenceBuilder),
+            _buildConfidenceBuilder(result.confidenceBuilder),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -52,21 +35,21 @@ class AnalysisResultScreen extends StatelessWidget {
                   "Weakness Analysis",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                if (images.isNotEmpty)
+                if (result.imageUrls.isNotEmpty)
                   TextButton.icon(
                     icon: const Icon(
                       Icons.collections,
                       color: AppColors.primary,
                     ),
                     label: Text(
-                      "View ${images.length > 1 ? 'Pages (${images.length})' : 'Page'}",
+                      "View ${result.imageUrls.length > 1 ? 'Pages (${result.imageUrls.length})' : 'Page'}",
                     ),
-                    onPressed: () => _showImages(context, images),
+                    onPressed: () => _showImages(context, result.imageUrls),
                   ),
               ],
             ),
             const SizedBox(height: 12),
-            if (weaknesses.isEmpty)
+            if (result.weaknesses.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 20),
                 child: Center(
@@ -77,15 +60,8 @@ class AnalysisResultScreen extends StatelessWidget {
                 ),
               )
             else
-              ...weaknesses.map((w) {
-                final topic = w['topic'] ?? "General";
-                final reason = w['reason'] ?? "Concept review needed";
-                final type = w['gap_type'] ?? "foundation";
-                return _buildWeaknessItem(
-                  topic,
-                  reason,
-                  _getColorForType(type),
-                );
+              ...result.weaknesses.map((w) {
+                return _buildWeaknessItem(context, w);
               }),
             const SizedBox(height: 24),
             SizedBox(
@@ -93,11 +69,11 @@ class AnalysisResultScreen extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () {
                   // Navigate to Roadmap
-                  final roadmapData = result['roadmap'] ?? [];
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => RoadmapScreen(roadmapData: roadmapData),
+                      builder: (_) =>
+                          RoadmapScreen(roadmapData: result.remediationDrills),
                     ),
                   );
                 },
@@ -120,13 +96,13 @@ class AnalysisResultScreen extends StatelessWidget {
     );
   }
 
-  Color _getColorForType(String type) {
-    switch (type.toLowerCase()) {
-      case 'foundation':
+  Color _getColorForType(GapType type) {
+    switch (type) {
+      case GapType.foundation:
         return Colors.redAccent;
-      case 'execution':
+      case GapType.execution:
         return Colors.orangeAccent;
-      case 'precision':
+      case GapType.precision:
         return Colors.amber;
       default:
         return Colors.blueGrey;
@@ -256,7 +232,9 @@ class AnalysisResultScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildWeaknessItem(String topic, String reason, Color color) {
+  Widget _buildWeaknessItem(BuildContext context, Weakness w) {
+    final color = _getColorForType(w.gapType);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -265,36 +243,219 @@ class AnalysisResultScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 4,
-            height: 40,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(2),
-            ),
+          Row(
+            children: [
+              Container(
+                width: 4,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            w.topic,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        if (w.priority >= 8)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              "CRITICAL",
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Grade Gap: ${w.gapType.name.toUpperCase()}",
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          if (w.mistakeExample.isNotEmpty ||
+              w.correctionExample.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                if (w.mistakeExample.isNotEmpty)
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.red.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Your Step",
+                            style: TextStyle(fontSize: 10, color: Colors.red),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            w.mistakeExample,
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (w.mistakeExample.isNotEmpty &&
+                    w.correctionExample.isNotEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: Icon(
+                      Icons.arrow_forward,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
+                  ),
+                if (w.correctionExample.isNotEmpty)
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.green.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Correct Step",
+                            style: TextStyle(fontSize: 10, color: Colors.green),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            w.correctionExample,
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          if (w.syllabusRefs.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: w.syllabusRefs.map((ref) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.grey.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Text(
+                    "Form ${ref.form} • Ch ${ref.chapterId}${ref.subtopicId != null ? ' • ${ref.subtopicId}' : ''}",
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: EdgeInsets.zero,
+              title: const Text(
+                "See Explanation",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
               children: [
                 Text(
-                  topic,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  reason,
+                  w.reason,
                   style: const TextStyle(
                     color: AppColors.textSecondary,
-                    fontSize: 14,
+                    height: 1.4,
                   ),
                 ),
+                if (w.action.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.lightbulb_outline,
+                        size: 16,
+                        color: Colors.amber,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          w.action,
+                          style: const TextStyle(
+                            fontStyle: FontStyle.italic,
+                            fontSize: 13,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
