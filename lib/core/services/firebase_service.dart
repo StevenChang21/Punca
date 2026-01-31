@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart'; /* id: 0 */
-import 'dart:io';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:punca_ai/core/models/assessment_model.dart';
 
 /* id: 2 */
 class FirebaseService {
@@ -17,27 +17,26 @@ class FirebaseService {
     // We are skipping Firebase Storage to avoid billing requirements.
     // Instead, we just return the local file path.
     // In a production app, you would upload this to a server.
+
+    FirebaseStorage.instance.ref().child(filePath + fileName);
     print("Using local file path for: $fileName");
     return filePath;
   }
 
   /// Saves the assessment result to Firestore
-  Future<void> saveAssessment({
-    required String studentId,
-    required List<String> imageUrls,
-    required Map<String, dynamic> aiAnalysis,
-  }) async {
+  Future<void> saveAssessment(AssessmentResult result) async {
     try {
-      await _assessments.add({
-        'studentId': studentId,
-        'imageUrls': imageUrls, // Store list of URLs
-        'imageUrl': imageUrls.isNotEmpty
-            ? imageUrls.first
-            : null, // Legacy support/Thumbnail
-        'aiAnalysis': aiAnalysis,
-        'createdAt': FieldValue.serverTimestamp(),
-        'status': 'completed',
-      });
+      await _assessments.add(result.toMap()); // Use cleaner toMap() method
+
+      // Save weaknesses in batch (handled automatically if we want, or keeping separate logic inside if needed)
+      // Since toMap() includes 'weaknesses' as a nested list map, Firestore stores it as an array of objects.
+      // But if we want the top-level 'weaknesses' collection for querying:
+      if (result.weaknesses.isNotEmpty) {
+        await saveWeaknesses(
+          studentId: result.studentId,
+          weaknesses: result.weaknesses.map((w) => w.toMap()).toList(),
+        );
+      }
     } catch (e) {
       print('Error saving assessment: $e');
       rethrow;
