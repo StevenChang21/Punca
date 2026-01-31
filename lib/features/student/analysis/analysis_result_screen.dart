@@ -3,6 +3,7 @@ import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/features/student/analysis/roadmap_screen.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
 import 'dart:io';
+import 'package:flutter_math_fork/flutter_math.dart';
 
 class AnalysisResultScreen extends StatelessWidget {
   final AssessmentResult result;
@@ -232,6 +233,52 @@ class AnalysisResultScreen extends StatelessWidget {
     );
   }
 
+  String _sanitizeLatex(String latex) {
+    // Remove leading/trailing $ or $$ and trim whitespace
+    return latex
+        .replaceAll(RegExp(r'^\$+'), '')
+        .replaceAll(RegExp(r'\$+$'), '')
+        .trim();
+  }
+
+  Widget _buildVerticalMath(String latex) {
+    final cleanLatex = _sanitizeLatex(latex);
+    // Naive split by '=' to stack steps vertically
+    // This assumes '=' is top-level separator.
+    final parts = cleanLatex.split('=');
+    if (parts.length <= 1) {
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Math.tex(
+          cleanLatex,
+          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: parts.asMap().entries.map((entry) {
+        final index = entry.key;
+        final part = entry.value.trim();
+        final prefix = index == 0 ? '' : '= ';
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8.0),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Math.tex(
+              prefix + part,
+              textStyle: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   Widget _buildWeaknessItem(BuildContext context, Weakness w) {
     final color = _getColorForType(w.gapType);
 
@@ -309,7 +356,38 @@ class AnalysisResultScreen extends StatelessWidget {
           ),
           if (w.mistakeExample.isNotEmpty ||
               w.correctionExample.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                InkWell(
+                  onTap: () => _showExpandedMath(context, w),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4.0),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(
+                          Icons.fullscreen,
+                          size: 16,
+                          color: AppColors.primary,
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          "Maximize View",
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
             Row(
               children: [
                 if (w.mistakeExample.isNotEmpty)
@@ -331,11 +409,14 @@ class AnalysisResultScreen extends StatelessWidget {
                             style: TextStyle(fontSize: 10, color: Colors.red),
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            w.mistakeExample,
-                            style: const TextStyle(
-                              fontFamily: 'monospace',
-                              fontWeight: FontWeight.bold,
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Math.tex(
+                              _sanitizeLatex(w.mistakeExample),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
                         ],
@@ -371,11 +452,14 @@ class AnalysisResultScreen extends StatelessWidget {
                             style: TextStyle(fontSize: 10, color: Colors.green),
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            w.correctionExample,
-                            style: const TextStyle(
-                              fontFamily: 'monospace',
-                              fontWeight: FontWeight.bold,
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Math.tex(
+                              _sanitizeLatex(w.correctionExample),
+                              textStyle: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
                         ],
@@ -460,6 +544,96 @@ class AnalysisResultScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showExpandedMath(BuildContext context, Weakness w) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      w.topic,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const Divider(),
+              const SizedBox(height: 16),
+              const SizedBox(height: 16),
+              const Text(
+                "Your Step",
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                height: 150, // Longer box
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                ),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  child: _buildVerticalMath(w.mistakeExample),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Center(
+                child: Icon(Icons.arrow_downward, color: Colors.grey, size: 24),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                "Correct Step",
+                style: TextStyle(
+                  color: Colors.green,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                height: 150, // Longer box
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.green.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.vertical,
+                  child: _buildVerticalMath(w.correctionExample),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
