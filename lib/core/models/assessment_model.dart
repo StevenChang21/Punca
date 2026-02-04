@@ -80,6 +80,38 @@ class AssessmentResult {
   }
 }
 
+class MistakeInstance {
+  final String mistake;
+  final String correction;
+  final int pageNumber;
+  final String questionId;
+
+  MistakeInstance({
+    required this.mistake,
+    required this.correction,
+    this.pageNumber = 1,
+    this.questionId = '',
+  });
+
+  factory MistakeInstance.fromJson(Map<String, dynamic> json) {
+    return MistakeInstance(
+      mistake: json['mistake'] ?? '',
+      correction: json['correction'] ?? '',
+      pageNumber: (json['page_number'] as num?)?.toInt() ?? 1,
+      questionId: json['question_id']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'mistake': mistake,
+      'correction': correction,
+      'page_number': pageNumber,
+      'question_id': questionId,
+    };
+  }
+}
+
 class Weakness {
   final String topic;
   final String reason;
@@ -89,8 +121,9 @@ class Weakness {
   final List<SyllabusPointer> syllabusRefs;
   // New fields for enhanced UI
   final int priority;
-  final String mistakeExample;
-  final String correctionExample;
+  final String mistakeExample; // Kept for legacy/summary
+  final String correctionExample; // Kept for legacy/summary
+  final List<MistakeInstance> instances;
 
   Weakness({
     required this.topic,
@@ -102,9 +135,38 @@ class Weakness {
     this.priority = 5,
     this.mistakeExample = '',
     this.correctionExample = '',
+    this.instances = const [],
   });
 
   factory Weakness.fromJson(Map<String, dynamic> json) {
+    // Parse instances if available
+    var parsedInstances = <MistakeInstance>[];
+    if (json['mistake_instances'] != null) {
+      parsedInstances = (json['mistake_instances'] as List)
+          .map((e) => MistakeInstance.fromJson(e))
+          .toList();
+    }
+
+    // Fallback: If no instances but legacy fields exist, create one instance
+    final legacyMistake = json['mistake_example']?.toString() ?? '';
+    final legacyCorrection = json['correction_example']?.toString() ?? '';
+
+    if (parsedInstances.isEmpty &&
+        (legacyMistake.isNotEmpty || legacyCorrection.isNotEmpty)) {
+      parsedInstances.add(
+        MistakeInstance(mistake: legacyMistake, correction: legacyCorrection),
+      );
+    }
+
+    // Ensure legacy fields are populated for UI compatibility
+    var finalMistakeExample = legacyMistake;
+    var finalCorrectionExample = legacyCorrection;
+
+    if (finalMistakeExample.isEmpty && parsedInstances.isNotEmpty) {
+      finalMistakeExample = parsedInstances.first.mistake;
+      finalCorrectionExample = parsedInstances.first.correction;
+    }
+
     return Weakness(
       topic: json['topic'] ?? 'General',
       reason: json['reason'] ?? '',
@@ -122,8 +184,9 @@ class Weakness {
               .toList() ??
           [],
       priority: (json['priority'] as num?)?.toInt() ?? 5,
-      mistakeExample: json['mistake_example']?.toString() ?? '',
-      correctionExample: json['correction_example']?.toString() ?? '',
+      mistakeExample: finalMistakeExample,
+      correctionExample: finalCorrectionExample,
+      instances: parsedInstances,
     );
   }
 
@@ -138,6 +201,7 @@ class Weakness {
       'priority': priority,
       'mistake_example': mistakeExample,
       'correction_example': correctionExample,
+      'mistake_instances': instances.map((e) => e.toMap()).toList(),
     };
   }
 

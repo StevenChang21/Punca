@@ -345,7 +345,8 @@ class AnalysisResultScreen extends StatelessWidget {
               ),
             ],
           ),
-          if (w.mistakeExample.isNotEmpty ||
+          if (w.instances.isNotEmpty ||
+              w.mistakeExample.isNotEmpty ||
               w.correctionExample.isNotEmpty) ...[
             const SizedBox(height: 12),
             Row(
@@ -357,7 +358,7 @@ class AnalysisResultScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(4.0),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         Icon(
                           Icons.fullscreen,
                           size: 16,
@@ -365,8 +366,10 @@ class AnalysisResultScreen extends StatelessWidget {
                         ),
                         SizedBox(width: 4),
                         Text(
-                          "Maximize View",
-                          style: TextStyle(
+                          w.instances.length > 1
+                              ? "View All ${w.instances.length} Instances"
+                              : "View Details",
+                          style: const TextStyle(
                             color: AppColors.primary,
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -577,12 +580,25 @@ class AnalysisResultScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
-                    child: Text(
-                      w.topic,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          w.topic,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        if (w.instances.length > 1)
+                          Text(
+                            "${w.instances.length} occurrences found",
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   IconButton(
@@ -592,57 +608,120 @@ class AnalysisResultScreen extends StatelessWidget {
                 ],
               ),
               const Divider(),
-              const SizedBox(height: 16),
-              const SizedBox(height: 16),
-              const Text(
-                "Your Step",
-                style: TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                height: 150, // Longer box
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
-                ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: _buildVerticalMath(w.mistakeExample),
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Center(
-                child: Icon(Icons.arrow_downward, color: Colors.grey, size: 24),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                "Correct Step",
-                style: TextStyle(
-                  color: Colors.green,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                height: 150, // Longer box
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.green.withValues(alpha: 0.2),
+              Expanded(
+                child: ListView.separated(
+                  padding: EdgeInsets.zero,
+                  itemCount: w.instances.isNotEmpty ? w.instances.length : 1,
+                  separatorBuilder: (context, index) => const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24.0),
+                    child: Divider(thickness: 4, color: AppColors.background),
                   ),
-                ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: _buildVerticalMath(w.correctionExample),
+                  itemBuilder: (context, index) {
+                    final mistake = w.instances.isNotEmpty
+                        ? w.instances[index].mistake
+                        : w.mistakeExample;
+                    final correction = w.instances.isNotEmpty
+                        ? w.instances[index].correction
+                        : w.correctionExample;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (w.instances.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12, top: 12),
+                            child: Row(
+                              children: [
+                                if (w.instances.length > 1) ...[
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      "Instance ${index + 1}",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                                Text(
+                                  "Page ${w.instances[index].pageNumber} • Question ${w.instances[index].questionId}",
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          "Your Step",
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.red.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: _buildVerticalMath(mistake),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Center(
+                          child: Icon(
+                            Icons.arrow_downward,
+                            color: Colors.grey,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          "Correct Step",
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.green.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: _buildVerticalMath(correction),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
