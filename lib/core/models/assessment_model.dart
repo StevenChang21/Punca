@@ -253,12 +253,23 @@ class RemediationDrill {
   });
 
   factory RemediationDrill.fromJson(Map<String, dynamic> json) {
+    final options = (json['options'] as List? ?? []).cast<String>();
+    String correctAnswer = json['correct_answer'] ?? '';
+
+    // Prefer index if available for strictness
+    if (json['correct_option_index'] != null) {
+      final int idx = json['correct_option_index'];
+      if (idx >= 0 && idx < options.length) {
+        correctAnswer = options[idx];
+      }
+    }
+
     return RemediationDrill(
       title: json['drill_title'] ?? 'Drill',
       miniLesson: json['mini_lesson'] ?? '',
       twinQuestion: json['twin_question'] ?? '',
-      correctAnswer: json['correct_answer'] ?? '',
-      options: (json['options'] as List? ?? []).cast<String>(),
+      correctAnswer: correctAnswer,
+      options: options,
     );
   }
 

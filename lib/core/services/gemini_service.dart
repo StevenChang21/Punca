@@ -183,7 +183,7 @@ class GeminiService {
         "mini_lesson": "STRIP TEXT. 1. Analogy (Max 1 sentence). 2. VISUAL EXAMPLE (Vertical steps) matching the Analogy exactly.\nExample output:\n'Think of the negative sign as a flipper.'\nExample:\n- (a + b)\n-> -a - b",
         "twin_question": "A NEW twin question (same concept, different numbers) for practice.",
         "options": ["Option A", "Option B", "Option C", "Option D"],
-        "correct_answer": "The correct option string (e.g. 'Option A')",
+        "correct_option_index": 0, // Integer 0-3
         "explanation": "Step-by-step solution using the KSSM method. Keep it simple."
       }
       """;
@@ -204,6 +204,56 @@ class GeminiService {
       return RemediationDrill.fromJson(json);
     } catch (e) {
       debugPrint("Error generating remediation: $e");
+      return null;
+    }
+  }
+
+  /// Generates a HARDER challenge drill based on the previous one
+  Future<RemediationDrill?> generateChallengeDrill(
+    Weakness weakness,
+    RemediationDrill previousDrill,
+    int level, // 1 or 2
+  ) async {
+    try {
+      final prompt =
+          """
+      ACT AS A MALAYSIAN KSSM MATH TUTOR.
+      
+      TASK: Generate a "LEVEL UP" Challenge Question (Level $level/2) for this student.
+      
+      PREVIOUS QUESTION: "${previousDrill.twinQuestion}"
+      CONCEPT: "${previousDrill.miniLesson}"
+      
+      INSTRUCTION:
+      1. Create a NEW question testing the SAME weakness but HARDER.
+      2. LEVEL 1: Change the numbers to be trickier (e.g. involve negatives or larger factors or fractions).
+      3. LEVEL 2: Change the CONTEXT or add a small twist (e.g. "Try solving this backwards" or "Word problem style").
+      4. RETAIN the "Mini Lesson". You can reuse the previous one or refine it slightly for the new context.
+      5. Strict KSSM methods apply.
+
+      OUTPUT FORMAT (JSON ONLY):
+      {
+        "drill_title": "Level Up Challenge!",
+        "mini_lesson": "The Mini Lesson text (Analogy + Visual Steps).",
+        "twin_question": "The new HARDER question.",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correct_option_index": 0, // Integer 0-3
+        "explanation": "Step-by-step KSSM solution."
+      }
+      """;
+
+      final content = [Content.text(prompt)];
+      final response = await _model.generateContent(content);
+      final text = response.text;
+
+      if (text == null) return null;
+
+      final cleanText = text.replaceAll(RegExp(r'^```json\n|\n```$'), '');
+      final json = jsonDecode(cleanText);
+
+      return RemediationDrill.fromJson(json);
+    } catch (e) {
+      debugPrint("Error generating challenge drill: $e");
       return null;
     }
   }
