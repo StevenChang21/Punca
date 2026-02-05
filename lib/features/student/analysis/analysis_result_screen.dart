@@ -3,6 +3,7 @@ import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/features/student/analysis/roadmap_screen.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter_math_fork/flutter_math.dart';
 
 class AnalysisResultScreen extends StatelessWidget {
@@ -241,10 +242,36 @@ class AnalysisResultScreen extends StatelessWidget {
         .trim();
   }
 
-  Widget _buildVerticalMath(String latex) {
-    final cleanLatex = _sanitizeLatex(latex);
+  Widget _buildVerticalMath(String rawInput) {
+    String trimmed = rawInput.trim();
+
+    // Check if it's a single pure latex block wrapped in $...$
+    bool isWrapped = trimmed.startsWith(r'$') && trimmed.endsWith(r'$');
+    bool hasInternalDollars = false;
+    if (isWrapped) {
+      // Check for extra $ inside the wrapper
+      if (trimmed.length > 2) {
+        hasInternalDollars = trimmed
+            .substring(1, trimmed.length - 1)
+            .contains(r'$');
+      }
+    } else {
+      hasInternalDollars = trimmed.contains(r'$');
+    }
+
+    // DECISION:
+    // 1. If it has internal dollars (e.g. "Text $math$ text") -> Mixed Mode
+    // 2. If it is NOT wrapped and has NO dollars -> Pure Math (Implicit)
+    // 3. If it IS wrapped and has NO internal dollars -> Pure Math (Explicit)
+
+    if (hasInternalDollars || (!isWrapped && trimmed.contains(r'$'))) {
+      return _buildMixedMathText(trimmed);
+    }
+
+    // --- PURE MATH MODE (Existing Logic) ---
+    final cleanLatex = _sanitizeLatex(trimmed);
+
     // Naive split by '=' to stack steps vertically
-    // This assumes '=' is top-level separator.
     final parts = cleanLatex.split('=');
     if (parts.length <= 1) {
       return SingleChildScrollView(
@@ -252,6 +279,10 @@ class AnalysisResultScreen extends StatelessWidget {
         child: Math.tex(
           cleanLatex,
           textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          onErrorFallback: (err) => Text(
+            cleanLatex,
+            style: const TextStyle(color: Colors.red),
+          ), // Fallback if parse fails
         ),
       );
     }
@@ -261,6 +292,8 @@ class AnalysisResultScreen extends StatelessWidget {
       children: parts.asMap().entries.map((entry) {
         final index = entry.key;
         final part = entry.value.trim();
+        if (part.isEmpty) return const SizedBox.shrink();
+
         final prefix = index == 0 ? '' : '= ';
         return Padding(
           padding: const EdgeInsets.only(bottom: 8.0),
@@ -272,10 +305,142 @@ class AnalysisResultScreen extends StatelessWidget {
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
+              onErrorFallback: (err) => Text(
+                prefix + part,
+                style: const TextStyle(color: Colors.red),
+              ),
             ),
           ),
         );
       }).toList(),
+    );
+  }
+
+  Widget _buildMixedMathText(String content) {
+    // 1. Replace safe arrow placeholder with LaTeX arrow
+    // Use spaces around it to ensure LaTeX parser sees it clearly
+    String processed = content.replaceAll('->', r' \rightarrow ');
+
+    // 2. Robust line splitting (handles \n, \r\n, etc.)
+    List<String> lines = const LineSplitter().convert(processed);
+    List<Widget> lineWidgets = [];
+
+    for (String line in lines) {
+      if (line.trim().isEmpty) continue;
+
+      List<String> parts = line.split(r'$');
+      List<Widget> rowChildren = [];
+
+      for (int i = 0; i < parts.length; i++) {
+        String part = parts[i].trim();
+        if (part.isEmpty) continue;
+
+        // Logic: Same heuristics as before
+        bool isMath =
+            (i % 2 == 1) ||
+            part.contains(r'\') ||
+            part.contains(RegExp(r'[=+\^]'));
+
+        if (isMath) {
+          // MATH PART
+          rowChildren.add(
+            Math.tex(
+              part,
+              textStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+              onErrorFallback: (err) => Text(
+                part,
+                style: const TextStyle(color: Colors.red, fontSize: 14),
+              ),
+            ),
+          );
+        } else {
+          // TEXT PART
+          rowChildren.add(
+            Text(
+              part,
+              style: const TextStyle(
+                fontSize: 15,
+                height: 1.5,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          );
+        }
+        // Spacing between parts
+        rowChildren.add(const SizedBox(width: 4));
+      }
+
+      // 3. Wrap each line row in a horizontal scroll view
+      lineWidgets.add(
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: rowChildren,
+          ),
+        ),
+      );
+
+      // Vertical spacing between lines
+      lineWidgets.add(const SizedBox(height: 8));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: lineWidgets,
+    );
+  }
+
+  // Used for Preview Cards - Keeps everything in a single line row
+  Widget _buildHorizontalMixedMath(String content) {
+    List<String> parts = content.split(r'$');
+    List<Widget> widgets = [];
+
+    for (int i = 0; i < parts.length; i++) {
+      String part = parts[i].trim();
+      if (part.isEmpty) continue;
+
+      // Logic: If odd index OR contains backslash OR contains math symbols
+      bool isMath =
+          (i % 2 == 1) ||
+          part.contains(r'\') ||
+          part.contains(RegExp(r'[=+\^]'));
+
+      if (isMath) {
+        // Math
+        widgets.add(
+          Math.tex(
+            part,
+            textStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+            onErrorFallback: (err) => Text(
+              part,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
+        );
+      } else {
+        // Text
+        widgets.add(Text(part, style: const TextStyle(fontSize: 12)));
+      }
+      widgets.add(const SizedBox(width: 4));
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Using Flexible/Expanded in a Row can be tricky if mainAxisSize is min.
+        // For horizontal scroll row, we usually don't need Flexible, just let it scroll in parent.
+        for (var w in widgets) w,
+      ],
     );
   }
 
@@ -405,13 +570,7 @@ class AnalysisResultScreen extends StatelessWidget {
                           const SizedBox(height: 2),
                           SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
-                            child: Math.tex(
-                              _sanitizeLatex(w.mistakeExample),
-                              textStyle: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
+                            child: _buildHorizontalMixedMath(w.mistakeExample),
                           ),
                         ],
                       ),
@@ -448,12 +607,8 @@ class AnalysisResultScreen extends StatelessWidget {
                           const SizedBox(height: 2),
                           SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
-                            child: Math.tex(
-                              _sanitizeLatex(w.correctionExample),
-                              textStyle: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
+                            child: _buildHorizontalMixedMath(
+                              w.correctionExample,
                             ),
                           ),
                         ],
@@ -569,6 +724,7 @@ class AnalysisResultScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -682,10 +838,7 @@ class AnalysisResultScreen extends StatelessWidget {
                               color: Colors.red.withValues(alpha: 0.2),
                             ),
                           ),
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: _buildVerticalMath(mistake),
-                          ),
+                          child: _buildMixedMathText(mistake),
                         ),
                         const SizedBox(height: 24),
                         const Center(
@@ -714,10 +867,7 @@ class AnalysisResultScreen extends StatelessWidget {
                               color: Colors.green.withValues(alpha: 0.2),
                             ),
                           ),
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: _buildVerticalMath(correction),
-                          ),
+                          child: _buildMixedMathText(correction),
                         ),
                       ],
                     );
