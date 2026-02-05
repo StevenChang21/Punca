@@ -4,6 +4,8 @@ import 'package:punca_ai/core/constants/kssm_syllabus.dart';
 
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 class GeminiService {
   late final GenerativeModel _model;
@@ -12,6 +14,7 @@ class GeminiService {
     _model = GenerativeModel(
       model: 'gemini-3-flash-preview', // Standard 2026 model
       apiKey: Secrets.geminiApiKey,
+      generationConfig: GenerationConfig(responseMimeType: 'application/json'),
     );
   }
 
@@ -27,35 +30,51 @@ class GeminiService {
           "If the content is NOT related to math or education (e.g. selfies, scenery), return this JSON: "
           "{\"subject\": \"Not Relevant\", \"grade\": \"N/A\", \"pages_processed\": [], \"total_questions_found\": 0, \"confidence_builder\": \"Please upload clear images of a math problem.\", \"weaknesses\": []}"
           "\n\n"
-          "CRITICAL INSTRUCTION: MULTI-PAGE ANALYSIS REQUIRED\n"
-          "You are receiving multiple images. You must analyze them sequentially as Page 1, Page 2, etc. until the last page.\n"
-          "Step 1: Count the total number of distinct math questions across ALL images combined. IMPORTANT: Pay close attention to sub-questions (e.g. 1(a), 1(b), 2(i), 2(ii)). Treat each sub-question as a specific item to check.\n"
-          "Step 2: Verify every single question found. If a question is wrong, it MUST have a corresponding 'weakness' entry.\n"
-          "Step 3: Output 'pages_processed': [1, 2, ...] in the JSON to confirm you analyzed each page index.\n\n"
-          "If it IS a math paper, analyze it using the following syllabus as context:\n"
-          "${KssmSyllabus.getPrompt()}\n\n"
-          "Identify mistakes and categorize them into 3 specific Newman's Analysis buckets:\n"
-          "1. 'foundation': Concept errors (didn't know which tool to use).\n"
-          "2. 'execution': Process errors (right tool, used wrongly).\n"
-          "3. 'precision': Careless errors (reading/encoding mistakes).\n\n"
-          "IMPORTANT: Group repeated similar mistakes into a SINGLE weakness entry. "
-          "e.g. If the student makes 3 algebra expansion errors, create 1 'Weakness' with 3 'mistake_instances'.\n\n"
+          "CRITICAL INSTRUCTION: GUIDED INVENTORY & ANALYSIS PROTOCOL\n"
+          "You are receiving multiple images. Analyze them as a sequential set.\n"
+          "Follow this exact 3-step thought process to ensure accuracy:\n\n"
+          "STEP 1: INVENTORY & SCORECARD\n"
+          "Scan ALL images from top to bottom. List every single Question ID found (e.g. 1(a), 1(b), 2).\n"
+          "For EACH Question ID, determine its status:\n"
+          " - 'Correct': Answer is right and steps are logical.\n"
+          " - 'Incorrect': Wrong answer or major logic fail.\n"
+          " - 'Partial': Minor slips OR Error Carried Forward (ECF).\n"
+          " *ECF RULE*: If a student uses a wrong value from a previous part (e.g. 1a) but applies the correct method in the current part (e.g. 1b), mark it 'Partial' (ECF). Do NOT punish them twice.\n\n"
+          "STEP 2: DETAILED ANALYSIS\n"
+          "Iterate through your Inventory. Only generate 'weakness' entries for items marked 'Incorrect' or 'Partial' (excluding ECF).\n"
+          "Compare the student's work against the KSSM Syllabus:\n"
+          "${KssmSyllabus.getPrompt()}\n"
+          " - Identify the specific mistake.\n"
+          " - Classify the mistake into 'foundation', 'execution', or 'precision'.\n"
+          "   1. 'foundation': Concept errors (didn't know which tool to use).\n"
+          "   2. 'execution': Process errors (right tool, used wrongly).\n"
+          "   3. 'precision': Careless errors (reading/encoding mistakes).\n\n"
+          "STEP 3: CLUSTERING (The Consolidation Rule)\n"
+          "Group your findings into the 'weaknesses' list using this strictly CONSOLIDATED approach:\n"
+          " - SAME QUESTION RULE: Mistakes occurring in the SAME question part (e.g. both in Q15(b)) MUST be grouped into ONE weakness entry, unless they are from completely different math branches (e.g. Geometry vs Algebra).\n"
+          " - BROAD TOPICS: Use broader topic names to group related mechanical errors. e.g. Instead of separate 'Factorisation' and 'Cancellation' groups, merge them under 'Algebraic Simplification'.\n"
+          " - MERGE OVER SPLIT: If Q1 has a 'Sign Error' and Q2 has a 'Expansion Error', group them under 'Algebraic Accuracy'. Ideally, produce fewer, denser cards rather than many fragmented ones.\n\n"
+          "Output 'pages_processed': [1, 2, ...] to confirm coverage.\n"
           "Provide the output in this EXACT JSON format (no markdown code blocks):"
           "{"
           "  \"subject\": \"Math\","
           "  \"grade\": \"<Approximate Grade/Score like '65%' or 'B+'>\","
           "  \"pages_processed\": [<list of integers for pages analyzed, e.g. 1, 2, 3>],"
           "  \"total_questions_found\": <integer count of questions identified>,"
+          "  \"questions_inventory\": ["
+          "     {\"id\": \"1(a)\", \"status\": \"Correct\"},"
+          "     {\"id\": \"1(b)\", \"status\": \"Partial (ECF)\"}"
+          "  ],"
           "  \"topics_identified\": [\"<Topic 1>\", \"<Topic 2>\"],"
           "  \"weaknesses\": ["
           "    {"
           "      \"topic\": \"<Topic Name. Use simple STUDENT-FRIENDLY terms. e.g. instead of 'Polynomial Factorisation', say 'Breaking expressions down'.>\",  "
-          "      \"reason\": \"<Brief reason why>\","
+          "      \"reason\": \"<Explain to the STUDENT directly (use 'You'). Keep it simple, short, and non-academic. e.g. 'You forgot to multiply the negative sign.' NOT 'The student failed to distribute...'>\",\n"
           "      \"priority\": <int 1-10> (10=Critical, 5=Medium),"
           "      \"mistake_instances\": ["
           "        {"
-          "           \"mistake\": \"<LaTeX MATH ONLY. Context: 'Source=Deviation'. e.g. '(b-2)^2 = 2b-4'>\", "
-          "           \"correction\": \"<LaTeX MATH ONLY. Step: 'Source=Inter=Result'. e.g. '(b-2)^2=(b-2)(b-2)=b^2-4b+4'>\","
+          "           \"mistake\": \"<FORMAT: '[Tag]: \\\\n [Previous Step] \\\\n -> [Student Error]'. 1. TAG: Max 5 words. Use words ONLY if difficult to explain with math. 2. PREVIOUS STEP: The valid line right before the error. 3. STUDENT ERROR: The exact raw expression from the image. EXAMPLE: 'Expansion Error: \\\\n 2(x+3) \\\\n -> 2x+3'. IF first line: '[Question] \\\\n -> [Student Error]'.>\", \n"
+          "           \"correction\": \"<FORMAT: '[Previous Step] \\\\n -> [Correct Step]'. Show the derivation from the SAME prev step. EXAMPLE: '2(x+3) \\\\n -> 2x + 6'.>\",\n"
           "           \"page_number\": <int, 1-based index of the page this appears on>,"
           "           \"question_id\": \"<String identifier e.g. '1(a)', 'Q3', '4b'>\""
           "        }"
@@ -66,7 +85,7 @@ class GeminiService {
           "      \"bounding_box\": [ymin, xmin, ymax, xmax] (Optional, referencing the first page found)"
           "    }"
           "  ],"
-          "  \"confidence_builder\": \"<A short, encouraging comment about a correct attempt>\""
+          "  \"confidence_builder\": \"<A short, encouraging comment about a correct attempt>\",\n"
           "}",
         ),
       );
@@ -88,10 +107,13 @@ class GeminiService {
         responseText = response.text;
       } catch (e) {
         if (e.toString().contains('503')) {
-          print("Gemini 2.5 Flash overloaded, switching to Flash-Lite...");
+          print("Gemini 1.5 Flash overloaded, switching to Flash-Lite...");
           final fallbackModel = GenerativeModel(
-            model: 'gemini-2.5-flash-lite',
+            model: 'gemini-2.0-flash-lite-preview-02-05', // Try latest lite
             apiKey: Secrets.geminiApiKey,
+            generationConfig: GenerationConfig(
+              responseMimeType: 'application/json',
+            ),
           );
           final response = await fallbackModel.generateContent(content);
           responseText = response.text;
@@ -102,15 +124,31 @@ class GeminiService {
 
       if (responseText == null) return null;
 
-      print(
-        "=== RAW GEMINI RESPONSE ===\n$responseText\n===========================",
-      );
+      // === FILE LOGGING (PERSISTENT & CONSOLE) ===
+      try {
+        final directory = await getApplicationDocumentsDirectory();
+        final debugFile = File('${directory.path}/gemini_debug_log.json');
+        final timestamp = DateTime.now().toIso8601String();
+        final logEntry =
+            "\n\n=== LOG START [$timestamp] ===\n$responseText\n=== LOG END ===\n";
+        await debugFile.writeAsString(logEntry, mode: FileMode.append);
+        print("✅ LOG WRITTEN TO FILE: ${debugFile.absolute.path}");
+      } catch (e) {
+        print("❌ Failed to write log file: $e");
+      }
 
-      // Clean and parse
-      final cleanJson = responseText
-          .replaceAll('```json', '')
-          .replaceAll('```', '');
-      return jsonDecode(cleanJson);
+      print("\n⬇️⬇️⬇️ START GEMINI RAW RESPONSE ⬇️⬇️⬇️");
+      const int chunkSize = 800;
+      for (int i = 0; i < responseText.length; i += chunkSize) {
+        int end = (i + chunkSize < responseText.length)
+            ? i + chunkSize
+            : responseText.length;
+        print(responseText.substring(i, end));
+      }
+      print("⬆️⬆️⬆️ END GEMINI RAW RESPONSE ⬆️⬆️⬆️\n");
+      // ==================================
+
+      return jsonDecode(responseText);
     } catch (e) {
       print("Error analyzing/parsing: $e");
       return null;
