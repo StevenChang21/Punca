@@ -1,14 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
+import 'package:flutter/foundation.dart';
 
 /* id: 2 */
 class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  // final FirebaseStorage _storage = FirebaseStorage.instance; // Unused
 
   // Collection References
-  CollectionReference get _users => _firestore.collection('users');
+  // CollectionReference get _users => _firestore.collection('users'); // Unused
   CollectionReference get _assessments => _firestore.collection('assessments');
   CollectionReference get _weaknesses => _firestore.collection('weaknesses');
 
@@ -19,7 +20,7 @@ class FirebaseService {
     // In a production app, you would upload this to a server.
 
     FirebaseStorage.instance.ref().child(filePath + fileName);
-    print("Using local file path for: $fileName");
+    debugPrint("Using local file path for: $fileName");
     return filePath;
   }
 
@@ -38,7 +39,7 @@ class FirebaseService {
         );
       }
     } catch (e) {
-      print('Error saving assessment: $e');
+      debugPrint('Error saving assessment: $e');
       rethrow;
     }
   }
@@ -52,21 +53,36 @@ class FirebaseService {
 
     for (var weakness in weaknesses) {
       final docRef = _weaknesses.doc(); // Auto-ID
+
+      // Extract syllabus reference if available to use as Stable ID
+      Map<String, dynamic> syllabusData = {};
+      if (weakness['syllabus_refs'] != null &&
+          (weakness['syllabus_refs'] as List).isNotEmpty) {
+        final ref =
+            (weakness['syllabus_refs'] as List).first as Map<String, dynamic>;
+        syllabusData = {
+          'form_id': ref['form'],
+          'chapter_id': ref['chapter_id'],
+          'subtopic_id': ref['subtopic_id'],
+        };
+      }
+
       batch.set(docRef, {
         'studentId': studentId,
-        'topic': weakness['topic'] ?? 'Unknown',
+        'topic': weakness['topic'] ?? 'Unknown', // Keep for display
+        ...syllabusData, // MERGE IDs: form_id, chapter_id, subtopic_id
         'reason': weakness['reason'] ?? '',
         'gap_type': weakness['gap_type'] ?? 'general',
-        'confidenceScore': 50, // Default or parsed from analysis if available
+        'confidenceScore': 50,
         'createdAt': FieldValue.serverTimestamp(),
       });
     }
 
     try {
       await batch.commit();
-      print('Weaknesses batch committed successfully');
+      debugPrint('Weaknesses batch committed successfully');
     } catch (e) {
-      print('Error saving weaknesses: $e');
+      debugPrint('Error saving weaknesses: $e');
       rethrow;
     }
   }

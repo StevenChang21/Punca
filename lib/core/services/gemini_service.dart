@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart';
 
 class GeminiService {
   late final GenerativeModel _model;
@@ -81,7 +82,7 @@ class GeminiService {
           "      ],"
           "      \"gap_type\": \"<Choose one: 'foundation', 'execution', 'precision'>\","
           "      \"action\": \"<MANDATORY: Cite KSSM Chapter FIRST (e.g. 'Review Ch 2.1'). Concisely explain fix. NO jargon like 'FOIL'. Use 'expansion' or 'cross method'. Max 15 words. e.g. 'Review Ch 5.3. Expand brackets carefully.'>\","
-          "      \"syllabus_refs\": [{\"form\": <int>, \"chapter_id\": <int>, \"subtopic_id\": \"<String e.g. '2.1'>\"}],"
+          "      \"syllabus_refs\": [{\"form\": <int>, \"chapter_id\": <int>, \"subtopic_id\": <int e.g. 1 (for 2.1)>}],"
           "      \"bounding_box\": [ymin, xmin, ymax, xmax] (Optional, referencing the first page found)"
           "    }"
           "  ],"
@@ -107,7 +108,7 @@ class GeminiService {
         responseText = response.text;
       } catch (e) {
         if (e.toString().contains('503')) {
-          print("Gemini 1.5 Flash overloaded, switching to Flash-Lite...");
+          debugPrint("Gemini 1.5 Flash overloaded, switching to Flash-Lite...");
           final fallbackModel = GenerativeModel(
             model: 'gemini-2.0-flash-lite-preview-02-05', // Try latest lite
             apiKey: Secrets.geminiApiKey,
@@ -132,25 +133,25 @@ class GeminiService {
         final logEntry =
             "\n\n=== LOG START [$timestamp] ===\n$responseText\n=== LOG END ===\n";
         await debugFile.writeAsString(logEntry, mode: FileMode.append);
-        print("✅ LOG WRITTEN TO FILE: ${debugFile.absolute.path}");
+        debugPrint("✅ LOG WRITTEN TO FILE: ${debugFile.absolute.path}");
       } catch (e) {
-        print("❌ Failed to write log file: $e");
+        debugPrint("❌ Failed to write log file: $e");
       }
 
-      print("\n⬇️⬇️⬇️ START GEMINI RAW RESPONSE ⬇️⬇️⬇️");
+      debugPrint("\n⬇️⬇️⬇️ START GEMINI RAW RESPONSE ⬇️⬇️⬇️");
       const int chunkSize = 800;
       for (int i = 0; i < responseText.length; i += chunkSize) {
         int end = (i + chunkSize < responseText.length)
             ? i + chunkSize
             : responseText.length;
-        print(responseText.substring(i, end));
+        debugPrint(responseText.substring(i, end));
       }
-      print("⬆️⬆️⬆️ END GEMINI RAW RESPONSE ⬆️⬆️⬆️\n");
+      debugPrint("⬆️⬆️⬆️ END GEMINI RAW RESPONSE ⬆️⬆️⬆️\n");
       // ==================================
 
       return jsonDecode(responseText);
     } catch (e) {
-      print("Error analyzing/parsing: $e");
+      debugPrint("Error analyzing/parsing: $e");
       return null;
     }
   }
