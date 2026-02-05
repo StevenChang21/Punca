@@ -1,7 +1,7 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:punca_ai/config/secrets.dart';
 import 'package:punca_ai/core/constants/kssm_syllabus.dart';
-
+import 'package:punca_ai/core/models/assessment_model.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -13,7 +13,7 @@ class GeminiService {
 
   GeminiService() {
     _model = GenerativeModel(
-      model: 'gemini-3-flash-preview', // Standard 2026 model
+      model: 'gemini-2.5-flash', // Standard 2026 model
       apiKey: Secrets.geminiApiKey,
       generationConfig: GenerationConfig(responseMimeType: 'application/json'),
     );
@@ -152,6 +152,58 @@ class GeminiService {
       return jsonDecode(responseText);
     } catch (e) {
       debugPrint("Error analyzing/parsing: $e");
+      return null;
+    }
+  }
+
+  /// Generates a targeted remediation drill for a specific weakness
+  Future<RemediationDrill?> generateRemediation(Weakness weakness) async {
+    try {
+      final prompt =
+          """
+      ACT AS A MALAYSIAN KSSM MATH TUTOR.
+      
+      TASK: Generate a targeted "Micro-Remediation" for this specific student weakness.
+      
+      CRITICAL INSTRUCTIONS:
+      1. METHOD: Strictly follow the Malaysian KSSM Syllabus methods. (e.g. use "Cross Method" for quadratics, NOT "FOIL").
+      2. TONE: Explain like a friendly big brother. Use ANALOGIES or VISUAL EXAMPLES. Avoid textbook jargon.
+      3. CONSISTENCY: The Analogy AND Example MUST match the student's specific gap. If the error is in Expansion, do NOT explain Factorisation.
+      4. LENGTH: Keep it short and punchy.
+
+      CONTEXT:
+      Topic: ${weakness.topic}
+      Student's Gap: ${weakness.reason}
+      Mistake Example: ${weakness.instances.isNotEmpty ? weakness.instances.first.mistake : 'N/A'}
+      Correction: ${weakness.instances.isNotEmpty ? weakness.instances.first.correction : 'N/A'}
+
+      OUTPUT FORMAT (JSON ONLY):
+      {
+        "drill_title": "Short catchy title e.g. 'Fixing Algebra'",
+        "mini_lesson": "STRIP TEXT. 1. Analogy (Max 1 sentence). 2. VISUAL EXAMPLE (Vertical steps) matching the Analogy exactly.\nExample output:\n'Think of the negative sign as a flipper.'\nExample:\n- (a + b)\n-> -a - b",
+        "twin_question": "A NEW twin question (same concept, different numbers) for practice.",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correct_answer": "The correct option string (e.g. 'Option A')",
+        "explanation": "Step-by-step solution using the KSSM method. Keep it simple."
+      }
+      """;
+
+      final content = [Content.text(prompt)];
+      // Use the model instance (ensure it's initialized)
+      // Check if _model is initialized, if not, use a new one or handle error.
+      // Assuming _model is late final and initialized in constructor.
+      final response = await _model.generateContent(content);
+      final text = response.text;
+
+      if (text == null) return null;
+
+      // Clean markdown if present
+      final cleanText = text.replaceAll(RegExp(r'^```json\n|\n```$'), '');
+      final json = jsonDecode(cleanText);
+
+      return RemediationDrill.fromJson(json);
+    } catch (e) {
+      debugPrint("Error generating remediation: $e");
       return null;
     }
   }

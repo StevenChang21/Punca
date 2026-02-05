@@ -5,11 +5,58 @@ import 'package:punca_ai/core/models/assessment_model.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter_math_fork/flutter_math.dart';
+import 'package:punca_ai/features/student/analysis/remediation_sheet.dart';
+import 'package:punca_ai/core/services/gemini_service.dart';
 
 class AnalysisResultScreen extends StatelessWidget {
   final AssessmentResult result;
 
   const AnalysisResultScreen({super.key, required this.result});
+
+  Future<void> _handlePractice(BuildContext context, Weakness weakness) async {
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text("Generating personalized drill..."),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Generate Drill
+    final drill = await GeminiService().generateRemediation(weakness);
+
+    // Hide loading
+    if (context.mounted) Navigator.pop(context);
+
+    if (drill != null && context.mounted) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => RemediationSheet(
+          drill: drill,
+          onMorePractice: () {}, // Optional future expansion
+        ),
+      );
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to generate drill. Try again.")),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -402,7 +449,7 @@ class AnalysisResultScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (w.priority >= 8)
+                        if (w.priority >= 8) ...[
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -421,6 +468,28 @@ class AnalysisResultScreen extends StatelessWidget {
                               ),
                             ),
                           ),
+                          const SizedBox(width: 8),
+                        ],
+                        SizedBox(
+                          height: 32,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _handlePractice(context, w),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 0,
+                              ),
+                              textStyle: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            icon: const Icon(Icons.fitness_center, size: 14),
+                            label: const Text("Practice"),
+                          ),
+                        ),
                       ],
                     ),
                   ],
