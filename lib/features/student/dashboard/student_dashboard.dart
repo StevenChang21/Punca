@@ -54,7 +54,7 @@ class StudentDashboard extends StatelessWidget {
             Builder(
               builder: (context) {
                 final uid = AuthService().currentUser?.uid;
-                print("Dashboard querying for studentId: $uid");
+                debugPrint("Dashboard querying for studentId: $uid");
 
                 return StreamBuilder<QuerySnapshot>(
                   stream: FirebaseService().getStudentAssessments(

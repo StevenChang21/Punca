@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -19,17 +20,17 @@ class AuthService {
     required String role, // 'Student' or 'Parent'
   }) async {
     try {
-      print("Starting Sign Up for $email");
+      debugPrint("Starting Sign Up for $email");
       // 1. Create User
       UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      print("User created: ${result.user?.uid}");
+      debugPrint("User created: ${result.user?.uid}");
 
       // 2. Create User Profile in Firestore
       if (result.user != null) {
-        print("Creating Firestore document...");
+        debugPrint("Creating Firestore document...");
         await _firestore.collection('users').doc(result.user!.uid).set({
           'uid': result.user!.uid,
           'email': email,
@@ -38,15 +39,15 @@ class AuthService {
           'createdAt': FieldValue.serverTimestamp(),
           'linkedAccounts': [],
         });
-        print("Firestore document created!");
+        debugPrint("Firestore document created!");
         return null; // Success
       }
       return "User creation failed";
     } on FirebaseAuthException catch (e) {
-      print("AUTH ERROR: ${e.code} - ${e.message}");
+      debugPrint("AUTH ERROR: ${e.code} - ${e.message}");
       return e.message;
     } catch (e) {
-      print("UNKNOWN ERROR: $e");
+      debugPrint("UNKNOWN ERROR: $e");
       return e.toString();
     }
   }
