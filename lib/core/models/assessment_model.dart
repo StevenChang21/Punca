@@ -216,7 +216,7 @@ class Weakness {
 class SyllabusPointer {
   final int form;
   final int chapterId;
-  final String? subtopicId; // e.g. "2.1"
+  final int? subtopicId; // e.g. 1 (representing 2.1)
 
   const SyllabusPointer({
     required this.form,
@@ -226,9 +226,9 @@ class SyllabusPointer {
 
   factory SyllabusPointer.fromJson(Map<String, dynamic> json) {
     return SyllabusPointer(
-      form: json['form'] ?? 0,
-      chapterId: json['chapter_id'] ?? 0,
-      subtopicId: json['subtopic_id']?.toString(),
+      form: (json['form'] as num?)?.toInt() ?? 0,
+      chapterId: (json['chapter_id'] as num?)?.toInt() ?? 0,
+      subtopicId: (json['subtopic_id'] as num?)?.toInt(),
     );
   }
 
