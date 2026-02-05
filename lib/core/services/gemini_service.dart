@@ -73,7 +73,7 @@ class GeminiService {
           "      \"priority\": <int 1-10> (10=Critical, 5=Medium),"
           "      \"mistake_instances\": ["
           "        {"
-          "           \"mistake\": \"<FORMAT: '[Tag]: \\\\n [Previous Step] \\\\n -> [Student Error]'. 1. TAG: Max 5 words. Use words ONLY if difficult to explain with math. 2. PREVIOUS STEP: The valid line right before the error. 3. STUDENT ERROR: The exact raw expression from the image. EXAMPLE: 'Expansion Error: \\\\n 2(x+3) \\\\n -> 2x+3'. IF first line: '[Question] \\\\n -> [Student Error]'.>\", \n"
+          "           \"mistake\": \"<FORMAT: '[Tag]: \\\\n [Previous Step] \\\\n -> [Student Error]'. 1. TAG: Max 5 words. Use words ONLY if difficult to explain with math. 2. PREVIOUS STEP: The valid line right before the error. IF it is the first line, use the RAW QUESTION EXPRESSION (e.g. '3+4(n-1)') as [Previous Step]. 3. STUDENT ERROR: The exact raw expression from the image. EXAMPLE: 'Expansion Error: \\\\n 2(x+3) \\\\n -> 2x+3'.>\", \n"
           "           \"correction\": \"<FORMAT: '[Previous Step] \\\\n -> [Correct Step]'. Show the derivation from the SAME prev step. EXAMPLE: '2(x+3) \\\\n -> 2x + 6'.>\",\n"
           "           \"page_number\": <int, 1-based index of the page this appears on>,"
           "           \"question_id\": \"<String identifier e.g. '1(a)', 'Q3', '4b'>\""
