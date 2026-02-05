@@ -48,6 +48,7 @@ class AnalysisResultScreen extends StatelessWidget {
         backgroundColor: Colors.transparent,
         builder: (_) => RemediationSheet(
           drill: drill,
+          weakness: weakness,
           onMorePractice: () {}, // Optional future expansion
         ),
       );
