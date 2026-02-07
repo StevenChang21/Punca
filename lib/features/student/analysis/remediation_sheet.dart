@@ -31,6 +31,7 @@ class _RemediationSheetState extends State<RemediationSheet> {
 
   List<String> _lessonChunks = [];
   int _visibleChunkCount = 0;
+  bool _practiceStarted = false;
 
   @override
   void initState() {
@@ -73,6 +74,7 @@ class _RemediationSheetState extends State<RemediationSheet> {
 
     // Start with 1 chunk visible, or all if empty (edge case)
     _visibleChunkCount = _lessonChunks.isNotEmpty ? 1 : 0;
+    _practiceStarted = false;
   }
 
   void _handleOptionSelect(String option) {
@@ -254,6 +256,20 @@ class _RemediationSheetState extends State<RemediationSheet> {
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                         ),
+                      ] else if (!_practiceStarted) ...[
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () =>
+                              setState(() => _practiceStarted = true),
+                          icon: const Icon(Icons.edit, size: 16),
+                          label: const Text("Start Practice"),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -264,7 +280,7 @@ class _RemediationSheetState extends State<RemediationSheet> {
               ],
 
               // Question Header (HIDDEN UNTIL LESSON COMPLETE)
-              if (isLessonComplete) ...[
+              if (_practiceStarted) ...[
                 Text(
                   _level == 0 ? "Quick Practice" : "Solve This (Harder!)",
                   style: const TextStyle(
