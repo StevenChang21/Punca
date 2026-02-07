@@ -165,7 +165,7 @@ class CameraScreen extends StatelessWidget {
     final assessment = await LoadingOverlay.show<AssessmentResult?>(
       context: context,
       message:
-          "Analyzing ${imagePaths.length} page${imagePaths.length > 1 ? 's' : ''}...\nfinding mistakes & gaps",
+          "Analyzing ${imagePaths.length} page${imagePaths.length > 1 ? 's' : ''}...\n让我检查这个人类的所作所为，只有我能为所欲为",
       asyncTask: () => _analyzeImages(context, imagePaths, images),
     );
 
