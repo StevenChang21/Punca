@@ -40,11 +40,37 @@ class _RemediationSheetState extends State<RemediationSheet> {
 
   void _initDrill(RemediationDrill drill) {
     _currentDrill = drill;
-    // Split by double newline to get paragraphs, filter empty ones
-    _lessonChunks = drill.miniLesson
-        .split(RegExp(r'\n\s*\n'))
-        .where((chunk) => chunk.trim().isNotEmpty)
-        .toList();
+    _lessonChunks = [];
+
+    // 1. Sanitize: Replace newlines with spaces to treat as continuous text
+    final text = drill.miniLesson.replaceAll('\n', ' ');
+
+    // 2. Split by sentences (improved regex)
+    // Matches sentences ending with . ! ? followed by space or end of string
+    final sentences = RegExp(
+      r'[^.!?]+[.!?]+',
+    ).allMatches(text).map((m) => m.group(0)!.trim()).toList();
+
+    if (sentences.isEmpty && text.isNotEmpty) {
+      // Fallback: no punctuation found, just use whole text in one chunk
+      _lessonChunks.add(text);
+    } else {
+      // 3. Group sentences into "visual chunks" of ~120-150 chars (approx 3 lines)
+      String currentChunk = "";
+      for (final sentence in sentences) {
+        if (currentChunk.isNotEmpty &&
+            (currentChunk.length + sentence.length) > 150) {
+          _lessonChunks.add(currentChunk.trim());
+          currentChunk = sentence;
+        } else {
+          currentChunk += (currentChunk.isEmpty ? "" : " ") + sentence;
+        }
+      }
+      if (currentChunk.isNotEmpty) {
+        _lessonChunks.add(currentChunk.trim());
+      }
+    }
+
     // Start with 1 chunk visible, or all if empty (edge case)
     _visibleChunkCount = _lessonChunks.isNotEmpty ? 1 : 0;
   }
