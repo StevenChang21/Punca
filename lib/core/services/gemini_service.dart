@@ -13,7 +13,7 @@ class GeminiService {
 
   GeminiService() {
     _model = GenerativeModel(
-      model: 'gemini-2.5-flash', // Standard 2026 model
+      model: 'gemini-3-flash-preview', // Standard 2026 model
       apiKey: Secrets.geminiApiKey,
       generationConfig: GenerationConfig(responseMimeType: 'application/json'),
     );
@@ -181,7 +181,7 @@ class GeminiService {
       OUTPUT FORMAT (JSON ONLY):
       {
         "drill_title": "Short catchy title e.g. 'Fixing Algebra'",
-        "mini_lesson": "STRIP TEXT. 1. Analogy (Max 1 sentence). 2. VISUAL EXAMPLE (Vertical steps) matching the Analogy exactly.\nExample output:\n'Think of the negative sign as a flipper.'\nExample:\n- (a + b)\n-> -a - b",
+        "mini_lesson": "STRIP TEXT. 1. Simple explanation (Use NUMBERS, not abstract concepts like 'tiles'). 2. VISUAL EXAMPLE (Vertical steps). 3. Avoid long analogies.\nExample output:\n'To expand brackets, multiply the outside number by EACH inside number.'\nExample:\n- 2(x + 3)\n-> 2 * x + 2 * 3\n-> 2x + 6",
         "twin_question": "A NEW twin question (same concept, different numbers) for practice.",
         "options": ["Option A", "Option B", "Option C", "Option D"],
         "correct_option_index": 0, // Integer 0-3
