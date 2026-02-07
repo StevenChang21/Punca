@@ -24,10 +24,13 @@ class FirebaseService {
     return filePath;
   }
 
-  /// Saves the assessment result to Firestore
-  Future<void> saveAssessment(AssessmentResult result) async {
+  /// Saves the assessment result to Firestore and returns the document ID
+  Future<String> saveAssessment(AssessmentResult result) async {
     try {
-      await _assessments.add(result.toMap()); // Use cleaner toMap() method
+      final docRef = await _assessments.add(
+        result.toMap(),
+      ); // Use cleaner toMap() method
+      debugPrint("Assessment saved with ID: ${docRef.id}");
 
       // Save weaknesses in batch (handled automatically if we want, or keeping separate logic inside if needed)
       // Since toMap() includes 'weaknesses' as a nested list map, Firestore stores it as an array of objects.
@@ -38,8 +41,24 @@ class FirebaseService {
           weaknesses: result.weaknesses.map((w) => w.toMap()).toList(),
         );
       }
+      return docRef.id;
     } catch (e) {
       debugPrint('Error saving assessment: $e');
+      rethrow;
+    }
+  }
+
+  /// Updates an existing assessment (e.g. adding remediation drills)
+  Future<void> updateAssessment(AssessmentResult result) async {
+    if (result.id.isEmpty) {
+      debugPrint("Cannot update assessment without ID");
+      return;
+    }
+    try {
+      await _assessments.doc(result.id).update(result.toMap());
+      debugPrint("Assessment updated: ${result.id}");
+    } catch (e) {
+      debugPrint("Error updating assessment: $e");
       rethrow;
     }
   }
