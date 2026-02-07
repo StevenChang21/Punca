@@ -243,6 +243,7 @@ class RemediationDrill {
   final String twinQuestion;
   final String correctAnswer;
   final List<String> options;
+  final List<VocabularyItem> vocabularyBridge;
 
   RemediationDrill({
     required this.title,
@@ -250,6 +251,7 @@ class RemediationDrill {
     required this.twinQuestion,
     required this.correctAnswer,
     required this.options,
+    this.vocabularyBridge = const [],
   });
 
   factory RemediationDrill.fromJson(Map<String, dynamic> json) {
@@ -264,12 +266,17 @@ class RemediationDrill {
       }
     }
 
+    final vocabularyBridge = (json['vocabulary_bridge'] as List? ?? [])
+        .map((e) => VocabularyItem.fromJson(e))
+        .toList();
+
     return RemediationDrill(
       title: json['drill_title'] ?? 'Drill',
       miniLesson: json['mini_lesson'] ?? '',
       twinQuestion: json['twin_question'] ?? '',
       correctAnswer: correctAnswer,
       options: options,
+      vocabularyBridge: vocabularyBridge,
     );
   }
 
@@ -280,6 +287,31 @@ class RemediationDrill {
       'twin_question': twinQuestion,
       'correct_answer': correctAnswer,
       'options': options,
+      'vocabulary_bridge': vocabularyBridge.map((e) => e.toMap()).toList(),
     };
+  }
+}
+
+class VocabularyItem {
+  final String term;
+  final String translation;
+  final String context;
+
+  VocabularyItem({
+    required this.term,
+    required this.translation,
+    required this.context,
+  });
+
+  factory VocabularyItem.fromJson(Map<String, dynamic> json) {
+    return VocabularyItem(
+      term: json['term'] ?? '',
+      translation: json['translation'] ?? '',
+      context: json['context'] ?? '',
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {'term': term, 'translation': translation, 'context': context};
   }
 }

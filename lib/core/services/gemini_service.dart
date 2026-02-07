@@ -182,6 +182,9 @@ class GeminiService {
       {
         "drill_title": "Short catchy title e.g. 'Fixing Algebra'",
         "mini_lesson": "STRIP TEXT. 1. Simple explanation (Use NUMBERS, not abstract concepts like 'tiles'). 2. VISUAL EXAMPLE (Vertical steps). 3. Avoid long analogies.\nExample output:\n'To expand brackets, multiply the outside number by EACH inside number.'\nExample:\n- 2(x + 3)\n-> 2 * x + 2 * 3\n-> 2x + 6",
+        "vocabulary_bridge": [
+          {"term": "Key Term (e.g. 'Perimeter')", "translation": "Chinese Term (e.g. '周长')", "context": "Brief definition in English"}
+        ],
         "twin_question": "A NEW twin question (same concept, different numbers) for practice.",
         "options": ["Option A", "Option B", "Option C", "Option D"],
         "correct_option_index": 0, // Integer 0-3
@@ -236,6 +239,9 @@ class GeminiService {
       {
         "drill_title": "Level Up Challenge!",
         "mini_lesson": "The Mini Lesson text (Analogy + Visual Steps).",
+        "vocabulary_bridge": [
+          {"term": "Key Term", "translation": "Chinese Term", "context": "Brief definition"}
+        ],
         "twin_question": "The new HARDER question.",
         "options": ["Option A", "Option B", "Option C", "Option D"],
         "correct_option_index": 0, // Integer 0-3

@@ -3,6 +3,7 @@ import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
 import 'package:punca_ai/core/services/gemini_service.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:punca_ai/features/student/analysis/widgets/vocabulary_card.dart';
 
 class RemediationSheet extends StatefulWidget {
   final RemediationDrill drill;
@@ -47,13 +48,14 @@ class _RemediationSheetState extends State<RemediationSheet> {
     final text = drill.miniLesson.replaceAll('\n', ' ');
 
     // 2. Split by sentences (improved regex)
-    // Matches sentences ending with . ! ? followed by space or end of string
-    final sentences = RegExp(
-      r'[^.!?]+[.!?]+',
-    ).allMatches(text).map((m) => m.group(0)!.trim()).toList();
+    // Splits only when punctuation is followed by whitespace, keeping decimals intact (e.g., "0.5")
+    final sentences = text
+        .split(RegExp(r'(?<=[.!?])\s+'))
+        .map((s) => s.trim())
+        .toList();
 
     if (sentences.isEmpty && text.isNotEmpty) {
-      // Fallback: no punctuation found, just use whole text in one chunk
+      // Fallback: no split occurred or empty text
       _lessonChunks.add(text);
     } else {
       // 3. Group sentences into "visual chunks" of ~120-150 chars (approx 3 lines)
@@ -208,6 +210,9 @@ class _RemediationSheetState extends State<RemediationSheet> {
                 ],
               ),
               const SizedBox(height: 16),
+
+              // Vocabulary Bridge
+              VocabularyCard(vocabulary: _currentDrill.vocabularyBridge),
 
               // Mini Lesson Text (Progressive)
               if (_lessonChunks.isNotEmpty) ...[
