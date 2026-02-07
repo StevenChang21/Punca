@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/features/student/analysis/analysis_result_screen.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
-import 'dart:io';
 
 import 'package:image_picker/image_picker.dart';
 
 import 'package:punca_ai/core/services/gemini_service.dart';
 import 'package:punca_ai/core/services/firebase_service.dart';
 import 'package:punca_ai/core/services/auth_service.dart';
+import 'package:punca_ai/core/widgets/loading_overlay.dart';
 
 class CameraScreen extends StatelessWidget {
   const CameraScreen({super.key});
@@ -154,108 +154,69 @@ class CameraScreen extends StatelessWidget {
     );
   }
 
-  void _showAnalysisProgress(
+  Future<void> _showAnalysisProgress(
     BuildContext context, {
     required List<String> imagePaths,
     required List<XFile> images,
-  }) {
-    // Start analysis immediately
-    if (imagePaths.isNotEmpty) {
-      _analyzeImages(context, imagePaths, images);
-    }
+  }) async {
+    if (imagePaths.isEmpty) return;
 
-    showModalBottomSheet(
+    // 1. Show Overlay and wait for data
+    final assessment = await LoadingOverlay.show<AssessmentResult?>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      enableDrag: false, // Prevent dismissing while analyzing
-      isDismissible: false,
-      builder: (context) => _buildAnalysisProgressSheet(context, imagePaths),
+      message:
+          "Analyzing ${imagePaths.length} page${imagePaths.length > 1 ? 's' : ''}...\nfinding mistakes & gaps",
+      asyncTask: () => _analyzeImages(context, imagePaths, images),
     );
+
+    // 2. Navigate only AFTER overlay is closed
+    if (assessment != null && context.mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AnalysisResultScreen(result: assessment),
+        ),
+      );
+    }
   }
 
-  Widget _buildAnalysisProgressSheet(
-    BuildContext context,
-    List<String> imagePaths,
-  ) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.6,
-      padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox(
-            height: 150,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: imagePaths.length,
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      File(imagePaths[index]),
-                      height: 150,
-                      width: 150,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 24),
-          const CircularProgressIndicator(color: AppColors.primary),
-          const SizedBox(height: 24),
-          Text(
-            "Analyzing ${imagePaths.length} page(s)...",
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text("Identifying key concepts and mistakes..."),
-          const SizedBox(height: 32),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _analyzeImages(
+  Future<AssessmentResult?> _analyzeImages(
     BuildContext context,
     List<String> imagePaths,
     List<XFile> images,
   ) async {
     final service = GeminiService();
-    // Delay slightly to allow UI to build
-    await Future.delayed(const Duration(seconds: 1));
+    // Delay slightly to allow UI to build/transition
+    await Future.delayed(const Duration(milliseconds: 500));
 
-    if (!context.mounted) return;
+    // Notice: We don't check context.mounted here as strict because we want the task to finish
+    // and return data even if user backgrounded app, though context is needed for saving?
+    // Actually, saving needs context for nothing specific except maybe error showing?
+    // Let's keep existing logic but return result.
 
     try {
       final resultMap = await service.analyzeImages(images);
 
-      if (!context.mounted) return;
-      Navigator.pop(context); // Close loading sheet
-
       if (resultMap != null) {
-        await _uploadAndSaveResults(context, imagePaths, resultMap);
+        if (context.mounted) {
+          return await _uploadAndSaveResults(context, imagePaths, resultMap);
+        }
       } else {
-        _showError(context, "Failed to analyze image. Please try again.");
+        if (context.mounted) {
+          _showError(context, "Failed to analyze image. Please try again.");
+        }
       }
     } catch (e) {
       debugPrint("Analysis error: $e");
       if (context.mounted) {
-        Navigator.pop(context); // Close loading sheet
         _showError(context, "An unexpected error occurred: $e");
       }
+      rethrow;
     }
+    return null;
   }
 
-  Future<void> _uploadAndSaveResults(
+  Future<AssessmentResult?> _uploadAndSaveResults(
     BuildContext context,
     List<String> imagePaths,
     Map<String, dynamic> result,
@@ -289,61 +250,23 @@ class CameraScreen extends StatelessWidget {
           json: result,
         );
 
-        // TODO: Update FirebaseService to accept AssessmentResult
-        // For now, we still need to support legacy manual saving or update FirebaseService
-        // But the plan says "Update FirebaseService.saveAssessment".
-        // I will stick to Map for now in this step, but converting inside the method is good.
-        // Actually, to use AssessmentResult properly, I should update FirebaseService first
-        // OR construct it here and pass it.
-        // Let's pass the AssessmentResult to the next screen.
-
-        await fbService.saveAssessment(
-          assessment,
-        ); // We will update this method next
+        await fbService.saveAssessment(assessment);
 
         debugPrint("Assessment saved successfully!");
-
-        // Save weaknesses (now handled via AssessmentResult inside saveAssessment ideally, but let's keep separate logic if needed or refactor)
-        // With AssessmentModel, saveAssessment() should handle everything.
-        // I will comment this out assuming saveAssessment will do it.
-        /*
-        if (result.containsKey('weaknesses') && result['weaknesses'] is List) {
-          await fbService.saveWeaknesses(
-            studentId: studentId,
-            weaknesses: result['weaknesses'],
-          );
-        }
-        */
-        // Actually, let's keep it safe. I haven't updated FirebaseService yet.
-        // I will do that in the NEXT step.
-        // So for THIS step, I'll prepare the object but maybe not use it fully until FS is ready?
-        // No, I should update FS first.
-        // But I am in CameraScreen.
-        // I will update this code to assume FS has the new signature.
+        return assessment; // Return the object instead of navigating
       }
-
-      if (!context.mounted) return;
-
-      // Create object for UI
-      final assessment = AssessmentResult.fromAnalysis(
-        studentId: studentId,
-        imageUrls: uploadedUrls,
-        json: result,
-      );
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              AnalysisResultScreen(result: assessment), // Pass object
-        ),
-      );
     } catch (e) {
       debugPrint("Firebase upload/save failed: $e");
       if (context.mounted) {
         _showError(context, "Failed to save results: $e");
       }
+      // Don't rethrow here if you want to keep the overlay closed but stay on screen?
+      // Actually LoadingOverlay closes on rethrow.
+      // If we return null, overlay closes and we stay here.
+      // If we want to show error inside this function, we do.
+      rethrow;
     }
+    return null;
   }
 
   void _showError(BuildContext context, String message) {

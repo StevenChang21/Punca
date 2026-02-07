@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:punca_ai/features/student/analysis/remediation_sheet.dart';
 import 'package:punca_ai/core/services/gemini_service.dart';
+import 'package:punca_ai/core/widgets/loading_overlay.dart';
 
 class AnalysisResultScreen extends StatelessWidget {
   final AssessmentResult result;
@@ -14,48 +15,35 @@ class AnalysisResultScreen extends StatelessWidget {
   const AnalysisResultScreen({super.key, required this.result});
 
   Future<void> _handlePractice(BuildContext context, Weakness weakness) async {
-    // Show loading
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text("Generating personalized drill..."),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
-    // Generate Drill
-    final drill = await GeminiService().generateRemediation(weakness);
-
-    // Hide loading
-    if (context.mounted) Navigator.pop(context);
-
-    if (drill != null && context.mounted) {
-      showModalBottomSheet(
+    try {
+      final drill = await LoadingOverlay.show(
         context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => RemediationSheet(
-          drill: drill,
-          weakness: weakness,
-          onMorePractice: () {}, // Optional future expansion
-        ),
+        message: "Generating personalized drill...",
+        asyncTask: () => GeminiService().generateRemediation(weakness),
       );
-    } else if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to generate drill. Try again.")),
-      );
+
+      if (drill != null && context.mounted) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => RemediationSheet(
+            drill: drill,
+            weakness: weakness,
+            onMorePractice: () {}, // Optional future expansion
+          ),
+        );
+      } else if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to generate drill. Try again.")),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
     }
   }
 
