@@ -34,6 +34,8 @@ class _RemediationSheetState extends State<RemediationSheet> {
   int _visibleChunkCount = 0;
   bool _practiceStarted = false;
 
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -42,41 +44,16 @@ class _RemediationSheetState extends State<RemediationSheet> {
 
   void _initDrill(RemediationDrill drill) {
     _currentDrill = drill;
-    _lessonChunks = [];
-
-    // 1. Sanitize: Replace newlines with spaces to treat as continuous text
-    final text = drill.miniLesson.replaceAll('\n', ' ');
-
-    // 2. Split by sentences (improved regex)
-    // Splits only when punctuation is followed by whitespace, keeping decimals intact (e.g., "0.5")
-    final sentences = text
-        .split(RegExp(r'(?<=[.!?])\s+'))
-        .map((s) => s.trim())
-        .toList();
-
-    if (sentences.isEmpty && text.isNotEmpty) {
-      // Fallback: no split occurred or empty text
-      _lessonChunks.add(text);
-    } else {
-      // 3. Group sentences into "visual chunks" of ~120-150 chars (approx 3 lines)
-      String currentChunk = "";
-      for (final sentence in sentences) {
-        if (currentChunk.isNotEmpty &&
-            (currentChunk.length + sentence.length) > 150) {
-          _lessonChunks.add(currentChunk.trim());
-          currentChunk = sentence;
-        } else {
-          currentChunk += (currentChunk.isEmpty ? "" : " ") + sentence;
-        }
-      }
-      if (currentChunk.isNotEmpty) {
-        _lessonChunks.add(currentChunk.trim());
-      }
-    }
+    _lessonChunks = _currentDrill.lessonChunks;
 
     // Start with 1 chunk visible, or all if empty (edge case)
     _visibleChunkCount = _lessonChunks.isNotEmpty ? 1 : 0;
     _practiceStarted = false;
+
+    // Reset scroll to top when initializing new drill
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
   }
 
   void _handleOptionSelect(String option) {
@@ -113,6 +90,14 @@ class _RemediationSheetState extends State<RemediationSheet> {
           _isAnswered = false;
           _isLoading = false;
         });
+
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
       } else {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -128,6 +113,17 @@ class _RemediationSheetState extends State<RemediationSheet> {
     setState(() {
       if (_visibleChunkCount < _lessonChunks.length) {
         _visibleChunkCount++;
+      }
+    });
+
+    // Auto-scroll to show new content
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeOut,
+        );
       }
     });
   }
@@ -154,6 +150,7 @@ class _RemediationSheetState extends State<RemediationSheet> {
           maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
         child: SingleChildScrollView(
+          controller: _scrollController,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -264,8 +261,19 @@ class _RemediationSheetState extends State<RemediationSheet> {
                       ] else if (!_practiceStarted) ...[
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
-                          onPressed: () =>
-                              setState(() => _practiceStarted = true),
+                          onPressed: () {
+                            setState(() => _practiceStarted = true);
+                            // Auto-scroll to question
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (_scrollController.hasClients) {
+                                _scrollController.animateTo(
+                                  _scrollController.position.maxScrollExtent,
+                                  duration: const Duration(milliseconds: 500),
+                                  curve: Curves.easeOut,
+                                );
+                              }
+                            });
+                          },
                           icon: const Icon(Icons.edit, size: 16),
                           label: const Text("Start Practice"),
                           style: ElevatedButton.styleFrom(

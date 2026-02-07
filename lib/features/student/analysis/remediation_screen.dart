@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
+import 'package:punca_ai/core/models/assessment_model.dart';
 
 class RemediationScreen extends StatefulWidget {
-  final List<dynamic> drills;
+  final List<RemediationDrill> drills;
 
   const RemediationScreen({super.key, required this.drills});
 
@@ -16,7 +17,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
   bool _isTestMode = false;
   final PageController _pageController = PageController();
   int _currentIndex = 0;
-  late List<dynamic> _shuffledQuizzes;
+  late List<RemediationDrill> _shuffledQuizzes;
 
   @override
   void initState() {
@@ -137,7 +138,7 @@ class _RemediationScreenState extends State<RemediationScreen> {
 }
 
 class _LessonCard extends StatelessWidget {
-  final Map<String, dynamic> drill;
+  final RemediationDrill drill;
   final VoidCallback onComplete;
   final bool isLast;
 
@@ -157,7 +158,7 @@ class _LessonCard extends StatelessWidget {
           const Icon(Icons.school, size: 64, color: AppColors.primary),
           const SizedBox(height: 24),
           Text(
-            drill['drill_title'] ?? "Concept Review",
+            drill.title,
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
@@ -176,7 +177,7 @@ class _LessonCard extends StatelessWidget {
               ],
             ),
             child: Text(
-              drill['mini_lesson'] ?? "Review the concept.",
+              drill.miniLesson,
               style: const TextStyle(fontSize: 18, height: 1.5),
               textAlign: TextAlign.center,
             ),
@@ -211,7 +212,7 @@ class _LessonCard extends StatelessWidget {
 }
 
 class _QuizCard extends StatefulWidget {
-  final Map<String, dynamic> drill;
+  final RemediationDrill drill;
   final VoidCallback onComplete;
 
   const _QuizCard({required this.drill, required this.onComplete});
@@ -228,8 +229,8 @@ class _QuizCardState extends State<_QuizCard> {
   @override
   Widget build(BuildContext context) {
     final drill = widget.drill;
-    final List<dynamic>? options = drill['options'];
-    final bool isMCQ = options != null && options.isNotEmpty;
+    final List<String> options = drill.options;
+    final bool isMCQ = options.isNotEmpty;
 
     if (_isCorrect) {
       return _buildSuccessView();
@@ -260,7 +261,7 @@ class _QuizCardState extends State<_QuizCard> {
               ),
             ),
             child: Text(
-              drill['twin_question'] ?? "Question not found.",
+              drill.twinQuestion,
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
               textAlign: TextAlign.center,
             ),
@@ -272,7 +273,7 @@ class _QuizCardState extends State<_QuizCard> {
               (opt) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: ElevatedButton(
-                  onPressed: () => _checkAnswer(drill, opt.toString()),
+                  onPressed: () => _checkAnswer(drill, opt),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: AppColors.textPrimary,
@@ -283,10 +284,7 @@ class _QuizCardState extends State<_QuizCard> {
                     ),
                     elevation: 0,
                   ),
-                  child: Text(
-                    opt.toString(),
-                    style: const TextStyle(fontSize: 16),
-                  ),
+                  child: Text(opt, style: const TextStyle(fontSize: 16)),
                 ),
               ),
             )
@@ -343,8 +341,8 @@ class _QuizCardState extends State<_QuizCard> {
     );
   }
 
-  void _checkAnswer(Map<String, dynamic> drill, String userAnswer) {
-    final correct = drill['correct_answer'].toString().trim().toLowerCase();
+  void _checkAnswer(RemediationDrill drill, String userAnswer) {
+    final correct = drill.correctAnswer.trim().toLowerCase();
     final user = userAnswer.trim().toLowerCase();
 
     // Fuzzy equality check

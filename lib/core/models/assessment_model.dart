@@ -322,6 +322,35 @@ class RemediationDrill {
       'weakness_id': weaknessId, // Persist linkage
     };
   }
+
+  // Helper to chunk mini-lesson for better readability
+  List<String> get lessonChunks {
+    final text = miniLesson.replaceAll('\n', ' ');
+    final sentences = text
+        .split(RegExp(r'(?<=[.!?])\s+'))
+        .map((s) => s.trim())
+        .toList();
+
+    if (sentences.isEmpty && text.isNotEmpty) {
+      return [text];
+    }
+
+    List<String> chunks = [];
+    String currentChunk = "";
+    for (final sentence in sentences) {
+      if (currentChunk.isNotEmpty &&
+          (currentChunk.length + sentence.length) > 150) {
+        chunks.add(currentChunk.trim());
+        currentChunk = sentence;
+      } else {
+        currentChunk += (currentChunk.isEmpty ? "" : " ") + sentence;
+      }
+    }
+    if (currentChunk.isNotEmpty) {
+      chunks.add(currentChunk.trim());
+    }
+    return chunks;
+  }
 }
 
 class VocabularyItem {
