@@ -40,6 +40,7 @@ class GeminiService {
           " - 'Correct': Answer is right and steps are logical.\n"
           " - 'Incorrect': Wrong answer or major logic fail.\n"
           " - 'Partial': Minor slips OR Error Carried Forward (ECF).\n"
+          " *VISUAL VERIFICATION*: For GEOMETRY diagrams, you MUST zoom in on ALL numerical labels (e.g. lengths, angles) and hash marks (single vs double ticks). Never assume a shape is regular or all sides equal unless explicitly marked. Differentiate 2cm vs 3.5cm.\n"
           " *ECF RULE*: If a student uses a wrong value from a previous part (e.g. 1a) but applies the correct method in the current part (e.g. 1b), mark it 'Partial' (ECF). Do NOT punish them twice.\n\n"
           "STEP 2: DETAILED ANALYSIS\n"
           "Iterate through your Inventory. Only generate 'weakness' entries for items marked 'Incorrect' or 'Partial' (excluding ECF).\n"
