@@ -8,6 +8,7 @@ import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:punca_ai/features/student/analysis/remediation_sheet.dart';
 import 'package:punca_ai/core/services/gemini_service.dart';
 import 'package:punca_ai/core/widgets/loading_overlay.dart';
+import 'package:punca_ai/core/services/firebase_service.dart'; // Add import
 
 class AnalysisResultScreen extends StatelessWidget {
   final AssessmentResult result;
@@ -16,11 +17,31 @@ class AnalysisResultScreen extends StatelessWidget {
 
   Future<void> _handlePractice(BuildContext context, Weakness weakness) async {
     try {
-      final drill = await LoadingOverlay.show(
-        context: context,
-        message: "Generating personalized drill...",
-        asyncTask: () => GeminiService().generateRemediation(weakness),
-      );
+      // 1. Check if drill already exists
+      RemediationDrill? drill;
+      try {
+        drill = result.remediationDrills.firstWhere(
+          (d) => d.weaknessId == weakness.id,
+        );
+      } catch (_) {
+        drill = null;
+      }
+
+      if (drill == null) {
+        // 2. Generate if missing
+        drill = await LoadingOverlay.show<RemediationDrill?>(
+          context: context,
+          message: "Generating personalized drill...",
+          asyncTask: () => GeminiService().generateRemediation(weakness),
+        );
+
+        // 3. Save if generated successfully
+        if (drill != null) {
+          result.remediationDrills.add(drill);
+          // Fire and forget save (or await if critical, but for UX speed let's just trigger it)
+          FirebaseService().updateAssessment(result);
+        }
+      }
 
       if (drill != null && context.mounted) {
         showModalBottomSheet(
@@ -28,7 +49,7 @@ class AnalysisResultScreen extends StatelessWidget {
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
           builder: (_) => RemediationSheet(
-            drill: drill,
+            drill: drill!,
             weakness: weakness,
             onMorePractice: () {}, // Optional future expansion
           ),
