@@ -250,10 +250,11 @@ class CameraScreen extends StatelessWidget {
           json: result,
         );
 
-        await fbService.saveAssessment(assessment);
+        final docId = await fbService.saveAssessment(assessment);
+        final savedAssessment = assessment.copyWith(id: docId);
 
-        debugPrint("Assessment saved successfully!");
-        return assessment; // Return the object instead of navigating
+        debugPrint("Assessment saved successfully with ID: $docId");
+        return savedAssessment; // Return the object with the ID
       }
     } catch (e) {
       debugPrint("Firebase upload/save failed: $e");
