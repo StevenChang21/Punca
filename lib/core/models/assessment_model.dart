@@ -1,3 +1,5 @@
+import 'package:uuid/uuid.dart';
+
 enum AssessmentStatus { analyzing, completed, failed }
 
 enum GapType {
@@ -8,6 +10,7 @@ enum GapType {
 }
 
 class AssessmentResult {
+  final String id;
   final String studentId;
   final String? paperId; // Optional firestore ID
   final List<String> imageUrls;
@@ -20,6 +23,7 @@ class AssessmentResult {
   final DateTime createdAt;
 
   AssessmentResult({
+    this.id = '',
     required this.studentId,
     this.paperId,
     required this.imageUrls,
@@ -32,6 +36,25 @@ class AssessmentResult {
     required this.createdAt,
   });
 
+  AssessmentResult copyWith({
+    String? id,
+    List<RemediationDrill>? remediationDrills,
+  }) {
+    return AssessmentResult(
+      id: id ?? this.id,
+      studentId: studentId,
+      paperId: paperId,
+      imageUrls: imageUrls,
+      subject: subject,
+      grade: grade,
+      confidenceBuilder: confidenceBuilder,
+      weaknesses: weaknesses,
+      remediationDrills: remediationDrills ?? this.remediationDrills,
+      status: status,
+      createdAt: createdAt,
+    );
+  }
+
   // Factory to parse from Gemini JSON
   factory AssessmentResult.fromAnalysis({
     required String studentId,
@@ -39,6 +62,7 @@ class AssessmentResult {
     required Map<String, dynamic> json,
   }) {
     return AssessmentResult(
+      id: '',
       studentId: studentId,
       imageUrls: imageUrls,
       subject: json['subject'] ?? 'Unknown',
@@ -113,6 +137,7 @@ class MistakeInstance {
 }
 
 class Weakness {
+  final String id;
   final String topic;
   final String reason;
   final GapType gapType;
@@ -126,6 +151,7 @@ class Weakness {
   final List<MistakeInstance> instances;
 
   Weakness({
+    String? id,
     required this.topic,
     required this.reason,
     required this.gapType,
@@ -136,7 +162,7 @@ class Weakness {
     this.mistakeExample = '',
     this.correctionExample = '',
     this.instances = const [],
-  });
+  }) : id = id ?? const Uuid().v4();
 
   factory Weakness.fromJson(Map<String, dynamic> json) {
     // Parse instances if available
@@ -168,6 +194,7 @@ class Weakness {
     }
 
     return Weakness(
+      id: json['id'], // Load ID if exists (for saved assessments)
       topic: json['topic'] ?? 'General',
       reason: json['reason'] ?? '',
       gapType: _parseGapType(json['gap_type']),
@@ -192,6 +219,7 @@ class Weakness {
 
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'topic': topic,
       'reason': reason,
       'gap_type': gapType.name,
@@ -244,6 +272,7 @@ class RemediationDrill {
   final String correctAnswer;
   final List<String> options;
   final List<VocabularyItem> vocabularyBridge;
+  final String weaknessId; // Link to the weakness ID this drill solves
 
   RemediationDrill({
     required this.title,
@@ -252,6 +281,7 @@ class RemediationDrill {
     required this.correctAnswer,
     required this.options,
     this.vocabularyBridge = const [],
+    this.weaknessId = '',
   });
 
   factory RemediationDrill.fromJson(Map<String, dynamic> json) {
@@ -277,6 +307,7 @@ class RemediationDrill {
       correctAnswer: correctAnswer,
       options: options,
       vocabularyBridge: vocabularyBridge,
+      weaknessId: json['weakness_id'] ?? '',
     );
   }
 
@@ -288,6 +319,7 @@ class RemediationDrill {
       'correct_answer': correctAnswer,
       'options': options,
       'vocabulary_bridge': vocabularyBridge.map((e) => e.toMap()).toList(),
+      'weakness_id': weaknessId, // Persist linkage
     };
   }
 }
