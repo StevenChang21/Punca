@@ -4,6 +4,7 @@ import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/core/services/auth_service.dart';
 import 'package:punca_ai/core/services/firebase_service.dart';
 import 'package:punca_ai/features/student/camera/camera_screen.dart';
+import 'package:punca_ai/features/student/analysis/history_screen.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
 
 class StudentDashboard extends StatelessWidget {
@@ -31,6 +32,15 @@ class StudentDashboard extends StatelessWidget {
           ],
         ),
         actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const HistoryScreen()),
+              );
+            },
+            icon: const Icon(Icons.history),
+          ),
           IconButton(
             onPressed: () {},
             icon: const Icon(Icons.notifications_outlined),

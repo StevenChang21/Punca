@@ -83,7 +83,9 @@ class AssessmentResult {
           .map((d) => RemediationDrill.fromJson(d))
           .toList(),
       status: AssessmentStatus.completed,
-      createdAt: DateTime.now(),
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt']) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
 
