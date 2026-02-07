@@ -205,6 +205,11 @@ class GeminiService {
       final cleanText = text.replaceAll(RegExp(r'^```json\n|\n```$'), '');
       final json = jsonDecode(cleanText);
 
+      // Inject weakness reason for linkage
+      if (json is Map<String, dynamic>) {
+        json['weakness_id'] = weakness.id;
+      }
+
       return RemediationDrill.fromJson(json);
     } catch (e) {
       debugPrint("Error generating remediation: $e");
