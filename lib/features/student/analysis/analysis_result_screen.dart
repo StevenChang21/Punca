@@ -273,7 +273,7 @@ class AnalysisResultScreen extends StatelessWidget {
   Widget _buildMixedMathText(String content) {
     // 1. Replace safe arrow placeholder with LaTeX arrow
     // Use spaces around it to ensure LaTeX parser sees it clearly
-    String processed = content.replaceAll('->', r' \rightarrow ');
+    String processed = content.replaceAll('->', ' → ');
 
     // 2. Robust line splitting (handles \n, \r\n, etc.)
     List<String> lines = const LineSplitter().convert(processed);
@@ -289,11 +289,8 @@ class AnalysisResultScreen extends StatelessWidget {
         String part = parts[i].trim();
         if (part.isEmpty) continue;
 
-        // Logic: Same heuristics as before
-        bool isMath =
-            (i % 2 == 1) ||
-            part.contains(r'\') ||
-            part.contains(RegExp(r'[=+\^]'));
+        // Logic: Only treat as math if inside $ delimiters or contains backslash
+        bool isMath = (i % 2 == 1) || part.contains(r'\');
 
         if (isMath) {
           // MATH PART
@@ -359,11 +356,8 @@ class AnalysisResultScreen extends StatelessWidget {
       String part = parts[i].trim();
       if (part.isEmpty) continue;
 
-      // Logic: If odd index OR contains backslash OR contains math symbols
-      bool isMath =
-          (i % 2 == 1) ||
-          part.contains(r'\') ||
-          part.contains(RegExp(r'[=+\^]'));
+      // Logic: Only treat as math if inside $ delimiters
+      bool isMath = (i % 2 == 1) || part.contains(r'\');
 
       if (isMath) {
         // Math
