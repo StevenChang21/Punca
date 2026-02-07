@@ -318,6 +318,7 @@ class AnalysisResultScreen extends StatelessWidget {
                 height: 1.5,
                 color: AppColors.textPrimary,
               ),
+              softWrap: false,
             ),
           );
         }
