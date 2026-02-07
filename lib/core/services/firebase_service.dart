@@ -106,11 +106,28 @@ class FirebaseService {
     }
   }
 
-  /// Stream of assessments for a specific student
-  Stream<QuerySnapshot> getStudentAssessments(String studentId) {
-    return _assessments
+  /// Get all past assessments for a student (Future based for easy loading)
+  Future<List<AssessmentResult>> getAssessments(String studentId) async {
+    final snapshot = await _assessments
         .where('studentId', isEqualTo: studentId)
         .orderBy('createdAt', descending: true)
-        .snapshots();
+        .get();
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      // Inject ID from document
+      data['id'] = doc.id;
+      // Handle timestamp conversion
+      if (data['createdAt'] is Timestamp) {
+        data['createdAt'] = (data['createdAt'] as Timestamp)
+            .toDate()
+            .toIso8601String();
+      }
+      return AssessmentResult.fromAnalysis(
+        studentId: studentId,
+        imageUrls: List<String>.from(data['imageUrls'] ?? []),
+        json: data,
+      ).copyWith(id: doc.id); // Ensure ID is set
+    }).toList();
   }
 }
