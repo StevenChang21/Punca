@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:punca_ai/core/services/auth_service.dart';
+import 'package:punca_ai/core/services/firebase_service.dart';
 import 'package:punca_ai/features/student/camera/camera_screen.dart';
 
 class StudentDashboard extends StatelessWidget {
@@ -13,7 +16,7 @@ class StudentDashboard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Hello, Student 👋",
+              "Hello, Student 👋", //TODO: Display student's name
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             Text(
@@ -47,7 +50,55 @@ class StudentDashboard extends StatelessWidget {
             _buildSectionHeader("Recent Activity"),
             const SizedBox(height: 16),
             _buildRecentActivityItem("Math - Algebra Quiz", "Completed • 85%"),
-            _buildRecentActivityItem("Physics - Motion", "Pending Analysis"),
+            // Dynamic List
+            Builder(
+              builder: (context) {
+                final uid = AuthService().currentUser?.uid;
+                debugPrint("Dashboard querying for studentId: $uid");
+
+                return StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseService().getStudentAssessments(
+                    uid ?? 'unknown',
+                  ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text(
+                            "No assessments yet. Snap a picture!",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                      );
+                    }
+
+                    final docs = snapshot.data!.docs;
+                    return Column(
+                      children: docs.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final analysis =
+                            data['aiAnalysis'] as Map<String, dynamic>?;
+                        final String subject =
+                            analysis?['subject'] ??
+                            data['subject'] ??
+                            'Punca Analysis';
+                        final String grade = analysis?['grade'] ?? 'Pending';
+                        // We could also show Timestamp if we formatted it
+                        return _buildRecentActivityItem(
+                          subject,
+                          "Grade: $grade",
+                        );
+                      }).toList(),
+                    );
+                  },
+                );
+              },
+            ),
           ],
         ),
       ),

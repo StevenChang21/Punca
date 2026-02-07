@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart'; // Uncomment after running flutterfire configure
 import 'package:punca_ai/config/app_theme.dart';
-import 'package:punca_ai/features/student/main_scaffold.dart';
+import 'package:punca_ai/features/auth/auth_wrapper.dart';
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-
-Future<void> main() async {
-  await dotenv.load(fileName: ".env");
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const PuncaApp());
 }
 
@@ -18,7 +19,7 @@ class PuncaApp extends StatelessWidget {
       title: 'Punca AI',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const MainScaffold(),
+      home: const AuthWrapper(),
     );
   }
 }

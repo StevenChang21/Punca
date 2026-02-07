@@ -1,25 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/features/student/analysis/analysis_result_screen.dart';
+import 'package:punca_ai/core/models/assessment_model.dart';
 
-import 'dart:io';
-import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:punca_ai/core/services/gemini_service.dart';
+import 'package:punca_ai/core/services/firebase_service.dart';
+import 'package:punca_ai/core/services/auth_service.dart';
+import 'package:punca_ai/core/widgets/loading_overlay.dart';
 
 class CameraScreen extends StatelessWidget {
   const CameraScreen({super.key});
 
-  Future<void> _pickImage(BuildContext context) async {
+  Future<void> _pickImages(BuildContext context) async {
     final ImagePicker picker = ImagePicker();
     try {
-      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-      if (image != null && context.mounted) {
-        _showProcessingMock(context, imagePath: image.path);
+      final List<XFile> images = await picker.pickMultiImage();
+      if (images.isNotEmpty && context.mounted) {
+        final paths = images.map((e) => e.path).toList();
+        _showAnalysisProgress(context, imagePaths: paths, images: images);
       }
     } catch (e) {
-      debugPrint("Error picking image: $e");
+      debugPrint("Error picking images: $e");
     }
   }
 
@@ -38,10 +41,14 @@ class CameraScreen extends StatelessWidget {
               child: const Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.camera_enhance, size: 80, color: Colors.white24),
+                  Icon(
+                    Icons.photo_library_outlined,
+                    size: 80,
+                    color: Colors.white24,
+                  ),
                   SizedBox(height: 16),
                   Text(
-                    "Camera Preview",
+                    "Please select from Gallery",
                     style: TextStyle(color: Colors.white54, fontSize: 18),
                   ),
                 ],
@@ -65,7 +72,7 @@ class CameraScreen extends StatelessWidget {
                 child: Padding(
                   padding: EdgeInsets.all(8.0),
                   child: Text(
-                    "Align exam paper within frame",
+                    "Select multiple pages if needed",
                     style: TextStyle(
                       color: Colors.white,
                       shadows: [Shadow(blurRadius: 4, color: Colors.black)],
@@ -86,6 +93,7 @@ class CameraScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
+                    // Exit Button
                     IconButton(
                       onPressed: () {
                         Navigator.pop(context);
@@ -96,26 +104,34 @@ class CameraScreen extends StatelessWidget {
                         size: 30,
                       ),
                     ),
+                    // Take Picture Button (DISABLED/TOAST)
                     GestureDetector(
                       onTap: () {
-                        // TODO: Take Picture
-                        _showProcessingMock(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              "Camera is currently unavailable. Please use Gallery.",
+                            ),
+                          ),
+                        );
                       },
                       child: Container(
                         width: 80,
                         height: 80,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Colors.grey[400], // Greyed out
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: AppColors.primary,
-                            width: 4,
-                          ),
+                          border: Border.all(color: Colors.grey, width: 4),
+                        ),
+                        child: const Icon(
+                          Icons.no_photography,
+                          color: Colors.white54,
                         ),
                       ),
                     ),
+                    // Pick from Gallery Button
                     IconButton(
-                      onPressed: () => _pickImage(context),
+                      onPressed: () => _pickImages(context),
                       icon: const Icon(
                         Icons.image,
                         color: Colors.white,
@@ -127,7 +143,7 @@ class CameraScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  "Tap to Snap",
+                  "Tap Gallery to Select Pages",
                   style: TextStyle(color: Colors.white70),
                 ),
               ],
@@ -138,108 +154,119 @@ class CameraScreen extends StatelessWidget {
     );
   }
 
-  void _showProcessingMock(BuildContext context, {String? imagePath}) {
-    // Start analysis immediately if image is provided
-    if (imagePath != null) {
-      _analyzeImage(context, imagePath);
-    }
+  Future<void> _showAnalysisProgress(
+    BuildContext context, {
+    required List<String> imagePaths,
+    required List<XFile> images,
+  }) async {
+    if (imagePaths.isEmpty) return;
 
-    showModalBottomSheet(
+    // 1. Show Overlay and wait for data
+    final assessment = await LoadingOverlay.show<AssessmentResult?>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      enableDrag: false, // Prevent dismissing while analyzing
-      isDismissible: false,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.6,
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (imagePath != null) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.file(
-                  File(imagePath),
-                  height: 150,
-                  width: 150,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              const SizedBox(height: 24),
-            ] else ...[
-              const Icon(Icons.description, size: 80, color: Colors.grey),
-              const SizedBox(height: 24),
-            ],
-            const CircularProgressIndicator(color: AppColors.primary),
-            const SizedBox(height: 24),
-            const Text(
-              "Analyzing your work using Gemini...",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text("Identifying key concepts and mistakes..."),
-            const SizedBox(height: 32),
-
-            // Hidden button, we auto-navigate now
-            /*
-            ElevatedButton(
-              onPressed: () {},
-              child: const Text("Processing..."),
-            )
-            */
-          ],
-        ),
-      ),
+      message:
+          "Analyzing ${imagePaths.length} page${imagePaths.length > 1 ? 's' : ''}...\nfinding mistakes & gaps",
+      asyncTask: () => _analyzeImages(context, imagePaths, images),
     );
+
+    // 2. Navigate only AFTER overlay is closed
+    if (assessment != null && context.mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AnalysisResultScreen(result: assessment),
+        ),
+      );
+    }
   }
 
-  Future<void> _analyzeImage(BuildContext context, String imagePath) async {
+  Future<AssessmentResult?> _analyzeImages(
+    BuildContext context,
+    List<String> imagePaths,
+    List<XFile> images,
+  ) async {
     final service = GeminiService();
-    // Delay slightly to allow UI to build
-    await Future.delayed(const Duration(seconds: 1));
+    // Delay slightly to allow UI to build/transition
+    await Future.delayed(const Duration(milliseconds: 500));
 
-    // ignore: use_build_context_synchronously
-    if (!context.mounted) return;
+    // Notice: We don't check context.mounted here as strict because we want the task to finish
+    // and return data even if user backgrounded app, though context is needed for saving?
+    // Actually, saving needs context for nothing specific except maybe error showing?
+    // Let's keep existing logic but return result.
 
-    final resultStr = await service.analyzeImage(imagePath);
+    try {
+      final resultMap = await service.analyzeImages(images);
 
-    // ignore: use_build_context_synchronously
-    if (!context.mounted) return;
-    Navigator.pop(context); // Close loading sheet
-
-    if (resultStr != null && !resultStr.startsWith("Error")) {
-      try {
-        // Clean markdown code blocks if present data
-        var cleanJson = resultStr
-            .replaceAll('```json', '')
-            .replaceAll('```', '');
-        final Map<String, dynamic> result = jsonDecode(cleanJson);
-
-        // ignore: use_build_context_synchronously
-        if (!context.mounted) return;
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) =>
-                AnalysisResultScreen(result: result, imagePath: imagePath),
-          ),
-        );
-      } catch (e) {
-        debugPrint("Error parsing JSON: $e");
-        _showError(
-          context,
-          "Failed to parse analysis results. \nRow output: $resultStr",
-        );
+      if (resultMap != null) {
+        if (context.mounted) {
+          return await _uploadAndSaveResults(context, imagePaths, resultMap);
+        }
+      } else {
+        if (context.mounted) {
+          _showError(context, "Failed to analyze image. Please try again.");
+        }
       }
-    } else {
-      _showError(context, resultStr ?? "Unknown error occurred");
+    } catch (e) {
+      debugPrint("Analysis error: $e");
+      if (context.mounted) {
+        _showError(context, "An unexpected error occurred: $e");
+      }
+      rethrow;
     }
+    return null;
+  }
+
+  Future<AssessmentResult?> _uploadAndSaveResults(
+    BuildContext context,
+    List<String> imagePaths,
+    Map<String, dynamic> result,
+  ) async {
+    try {
+      final fbService = FirebaseService();
+      List<String> uploadedUrls = [];
+
+      final user = AuthService().currentUser;
+      final studentId = user?.uid ?? "unknown_student";
+      final String paperId = "paper_${DateTime.now().millisecondsSinceEpoch}";
+      final String storageFolder = "users/$studentId/papers/$paperId";
+
+      debugPrint("Uploading images to: $storageFolder");
+
+      for (var i = 0; i < imagePaths.length; i++) {
+        final path = imagePaths[i];
+        final String fileName = "$storageFolder/page_${i + 1}.jpg";
+
+        final String? imageUrl = await fbService.uploadImage(path, fileName);
+        if (imageUrl != null) uploadedUrls.add(imageUrl);
+      }
+
+      if (uploadedUrls.isNotEmpty) {
+        debugPrint("Saving assessment for studentId: $studentId");
+
+        // Create AssessmentResult object
+        final assessment = AssessmentResult.fromAnalysis(
+          studentId: studentId,
+          imageUrls: uploadedUrls,
+          json: result,
+        );
+
+        await fbService.saveAssessment(assessment);
+
+        debugPrint("Assessment saved successfully!");
+        return assessment; // Return the object instead of navigating
+      }
+    } catch (e) {
+      debugPrint("Firebase upload/save failed: $e");
+      if (context.mounted) {
+        _showError(context, "Failed to save results: $e");
+      }
+      // Don't rethrow here if you want to keep the overlay closed but stay on screen?
+      // Actually LoadingOverlay closes on rethrow.
+      // If we return null, overlay closes and we stay here.
+      // If we want to show error inside this function, we do.
+      rethrow;
+    }
+    return null;
   }
 
   void _showError(BuildContext context, String message) {
