@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
 import 'package:punca_ai/core/services/gemini_service.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:punca_ai/features/student/analysis/widgets/math_display.dart';
 import 'package:punca_ai/features/student/analysis/widgets/vocabulary_card.dart';
 
 class RemediationSheet extends StatefulWidget {
@@ -128,6 +128,49 @@ class _RemediationSheetState extends State<RemediationSheet> {
     });
   }
 
+  Future<void> _handleRegenerateLesson() async {
+    setState(() => _isLoading = true);
+
+    // Scroll to top to show loading state
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+
+    try {
+      final newDrill = await GeminiService().generateRemediation(
+        widget.weakness,
+      );
+
+      if (mounted) {
+        if (newDrill != null) {
+          setState(() {
+            _initDrill(newDrill);
+            _level = 0;
+            _selectedOption = null;
+            _isAnswered = false;
+            _isLoading = false;
+          });
+        } else {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to regenerate lesson.")),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Check if lesson is fully revealed
@@ -204,6 +247,19 @@ class _RemediationSheetState extends State<RemediationSheet> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+
+                  if (_level == 0) // Only allow regenerating the base lesson
+                    IconButton(
+                      icon: _isLoading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh, color: Colors.grey),
+                      onPressed: _isLoading ? null : _handleRegenerateLesson,
+                      tooltip: "Regenerate Lesson",
+                    ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -229,18 +285,12 @@ class _RemediationSheetState extends State<RemediationSheet> {
                             padding: EdgeInsets.symmetric(vertical: 8.0),
                             child: Divider(height: 1),
                           ),
-                        MarkdownBody(
-                          data: _lessonChunks[i],
-                          styleSheet: MarkdownStyleSheet(
-                            p: const TextStyle(
-                              fontSize: 20,
-                              height: 1.5,
-                              color: AppColors.textPrimary,
-                            ),
-                            strong: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
+                        MixedMathText(
+                          content: _lessonChunks[i],
+                          textStyle: const TextStyle(
+                            fontSize: 20,
+                            height: 1.5,
+                            color: AppColors.textPrimary,
                           ),
                         ),
                       ],
@@ -305,15 +355,12 @@ class _RemediationSheetState extends State<RemediationSheet> {
                 const SizedBox(height: 12),
 
                 // Question Body
-                MarkdownBody(
-                  data: _currentDrill.twinQuestion,
-                  styleSheet: MarkdownStyleSheet(
-                    p: const TextStyle(
-                      fontSize: 18,
-                      height: 1.5,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    strong: const TextStyle(fontWeight: FontWeight.bold),
+                MixedMathText(
+                  content: _currentDrill.twinQuestion,
+                  textStyle: const TextStyle(
+                    fontSize: 18,
+                    height: 1.5,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -370,9 +417,9 @@ class _RemediationSheetState extends State<RemediationSheet> {
                           child: Row(
                             children: [
                               Expanded(
-                                child: Text(
-                                  option,
-                                  style: TextStyle(
+                                child: MixedMathText(
+                                  content: option,
+                                  textStyle: TextStyle(
                                     fontSize: 16,
                                     color: textColor,
                                     fontWeight:
