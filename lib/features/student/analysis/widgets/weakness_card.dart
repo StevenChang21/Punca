@@ -175,8 +175,8 @@ class WeaknessCard extends StatelessWidget {
                           const SizedBox(height: 2),
                           SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
-                            child: HorizontalMathText(
-                              content: weakness.mistakeExample,
+                            child: _buildSplittableMath(
+                              weakness.mistakeExample,
                             ),
                           ),
                         ],
@@ -214,8 +214,8 @@ class WeaknessCard extends StatelessWidget {
                           const SizedBox(height: 2),
                           SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
-                            child: HorizontalMathText(
-                              content: weakness.correctionExample,
+                            child: _buildSplittableMath(
+                              weakness.correctionExample,
                             ),
                           ),
                         ],
@@ -307,12 +307,14 @@ class WeaknessCard extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          weakness.action,
-                          style: const TextStyle(
+                        // Use MathText directly
+                        // Reverted from MixedMathText as per user request
+                        MixedMathText(
+                          content: weakness.action,
+                          textStyle: const TextStyle(
+                            fontSize: 16,
                             color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
@@ -464,7 +466,7 @@ class WeaknessCard extends StatelessWidget {
                             color: Colors.red.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: MathText(content: mistake),
+                          child: _buildSplittableMath(mistake),
                         ),
                         const SizedBox(height: 16),
                         const Text(
@@ -483,7 +485,7 @@ class WeaknessCard extends StatelessWidget {
                             color: Colors.green.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: MathText(content: correction),
+                          child: _buildSplittableMath(correction),
                         ),
                       ],
                     );
@@ -495,5 +497,42 @@ class WeaknessCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildSplittableMath(String content) {
+    // Check for "Label: Content" pattern
+    // e.g. "Question left blank : \n 2x+5"
+    // Heuristic: Colon in first 30 chars
+    final int colonIndex = content.indexOf(':');
+    final bool hasLabel = colonIndex != -1 && colonIndex < 35;
+
+    if (hasLabel) {
+      final String label = content.substring(0, colonIndex + 1);
+      final String mathContent = content.substring(colonIndex + 1).trim();
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4.0),
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+          MathText(
+            content: mathContent,
+            textStyle: const TextStyle(fontSize: 14),
+          ),
+        ],
+      );
+    }
+
+    return MathText(content: content, textStyle: const TextStyle(fontSize: 14));
   }
 }
