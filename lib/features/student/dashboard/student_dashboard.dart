@@ -5,6 +5,7 @@ import 'package:punca_ai/core/services/auth_service.dart';
 import 'package:punca_ai/core/services/firebase_service.dart';
 import 'package:punca_ai/features/student/camera/camera_screen.dart';
 import 'package:punca_ai/features/student/analysis/history_screen.dart';
+import 'package:punca_ai/features/student/analysis/analysis_result_screen.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
 
 class StudentDashboard extends StatelessWidget {
@@ -33,15 +34,6 @@ class StudentDashboard extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const HistoryScreen()),
-              );
-            },
-            icon: const Icon(Icons.history),
-          ),
-          IconButton(
             onPressed: () {},
             icon: const Icon(Icons.notifications_outlined),
           ),
@@ -60,7 +52,7 @@ class StudentDashboard extends StatelessWidget {
             const SizedBox(height: 24),
             _buildSectionHeader("Recent Activity"),
             const SizedBox(height: 16),
-            _buildRecentActivityItem("Math - Algebra Quiz", "Completed • 85%"),
+
             // Dynamic List
             Builder(
               builder: (context) {
@@ -72,6 +64,40 @@ class StudentDashboard extends StatelessWidget {
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (snapshot.hasError) {
+                      return Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            const Text(
+                              "Error loading history.",
+                              style: TextStyle(color: Colors.red),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              "${snapshot.error}",
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const HistoryScreen(),
+                                  ),
+                                );
+                              },
+                              child: const Text("Open History Screen"),
+                            ),
+                          ],
+                        ),
+                      );
                     }
 
                     if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -90,12 +116,38 @@ class StudentDashboard extends StatelessWidget {
                     final recent = snapshot.data!.take(3).toList();
 
                     return Column(
-                      children: recent.map((assessment) {
-                        return _buildRecentActivityItem(
-                          assessment.subject,
-                          "Grade: ${assessment.grade}",
-                        );
-                      }).toList(),
+                      children: [
+                        ...recent.map((assessment) {
+                          return _buildRecentActivityItem(
+                            assessment.subject,
+                            "Grade: ${assessment.grade}",
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      AnalysisResultScreen(result: assessment),
+                                ),
+                              );
+                            },
+                          );
+                        }),
+                        if (snapshot.data!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const HistoryScreen(),
+                                  ),
+                                );
+                              },
+                              child: const Text("View All History"),
+                            ),
+                          ),
+                      ],
                     );
                   },
                 );
@@ -207,21 +259,32 @@ class StudentDashboard extends StatelessWidget {
     );
   }
 
-  Widget _buildRecentActivityItem(String title, String subtitle) {
+  Widget _buildRecentActivityItem(
+    String title,
+    String subtitle, {
+    VoidCallback? onTap,
+  }) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: ListTile(
+          leading: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.description, color: AppColors.primary),
           ),
-          child: const Icon(Icons.description, color: AppColors.primary),
+          title: Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(subtitle),
+          trailing: const Icon(Icons.chevron_right, color: Colors.grey),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
       ),
     );
   }
