@@ -327,31 +327,18 @@ class RemediationDrill {
 
   // Helper to chunk mini-lesson for better readability
   List<String> get lessonChunks {
-    final text = miniLesson.replaceAll('\n', ' ');
-    final sentences = text
-        .split(RegExp(r'(?<=[.!?])\s+'))
+    if (miniLesson.isEmpty) return [];
+
+    // Normalize: Replace all literal "\n" and other variants with actual newline char
+    String processed = miniLesson
+        .replaceAll(r'\\n', '\n') // Replace literal \n with newline
+        .replaceAll(r'\n', '\n'); // Normalize just in case
+
+    return processed
+        .split('\n')
         .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
         .toList();
-
-    if (sentences.isEmpty && text.isNotEmpty) {
-      return [text];
-    }
-
-    List<String> chunks = [];
-    String currentChunk = "";
-    for (final sentence in sentences) {
-      if (currentChunk.isNotEmpty &&
-          (currentChunk.length + sentence.length) > 150) {
-        chunks.add(currentChunk.trim());
-        currentChunk = sentence;
-      } else {
-        currentChunk += (currentChunk.isEmpty ? "" : " ") + sentence;
-      }
-    }
-    if (currentChunk.isNotEmpty) {
-      chunks.add(currentChunk.trim());
-    }
-    return chunks;
   }
 }
 

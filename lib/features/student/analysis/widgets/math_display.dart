@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:punca_ai/config/app_theme.dart';
@@ -6,87 +5,160 @@ import 'package:punca_ai/config/app_theme.dart';
 class MathText extends StatelessWidget {
   final String content;
   final TextStyle? textStyle;
+  final bool isCentered;
 
-  const MathText({super.key, required this.content, this.textStyle});
+  const MathText({
+    super.key,
+    required this.content,
+    this.textStyle,
+    this.isCentered = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // 1. Replace safe arrow placeholder with LaTeX arrow
-    // Use spaces around it to ensure LaTeX parser sees it clearly
-    String processed = content.replaceAll('->', ' → ');
+    // 1. Basic sanitization
+    String processed = content.replaceAll(r'\\', r'\');
 
-    // 2. Robust line splitting (handles \n, \r\n, etc.)
-    List<String> lines = const LineSplitter().convert(processed);
-    List<Widget> lineWidgets = [];
-
-    for (String line in lines) {
-      if (line.trim().isEmpty) continue;
-
-      List<String> parts = line.split(r'$');
-      List<Widget> rowChildren = [];
-
-      for (int i = 0; i < parts.length; i++) {
-        String part = parts[i].trim();
-        if (part.isEmpty) continue;
-
-        // Logic: Only treat as math if inside $ delimiters or contains backslash
-        bool isMath = (i % 2 == 1) || part.contains(r'\');
-
-        if (isMath) {
-          // MATH PART
-          rowChildren.add(
-            Math.tex(
-              part,
-              textStyle: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-              onErrorFallback: (err) => Text(
-                part,
-                style: const TextStyle(color: Colors.red, fontSize: 14),
-              ),
-            ),
-          );
-        } else {
-          // TEXT PART
-          rowChildren.add(
-            Text(
-              part,
-              style:
-                  textStyle ??
-                  const TextStyle(
-                    fontSize: 15,
-                    height: 1.5,
-                    color: AppColors.textPrimary,
-                  ),
-              softWrap: false,
-            ),
-          );
-        }
-        // Spacing between parts
-        rowChildren.add(const SizedBox(width: 4));
-      }
-
-      // 3. Wrap each line row in a horizontal scroll view
-      lineWidgets.add(
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: rowChildren,
-          ),
-        ),
-      );
-
-      // Vertical spacing between lines
-      lineWidgets.add(const SizedBox(height: 8));
-    }
+    // 2. Split by newlines (handle both \n and \\n)
+    List<String> lines = processed.split(RegExp(r'\n|\\\\n'));
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: lineWidgets,
+      crossAxisAlignment: isCentered
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
+      children: lines.map((line) {
+        String lineContent = line.trim();
+        if (lineContent.isEmpty) return const SizedBox.shrink();
+
+        // 3. Handle arrows universally per line
+        lineContent = lineContent.replaceAll('->', r' \to ');
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2.0),
+          child: Math.tex(
+            lineContent,
+            textStyle:
+                textStyle ??
+                const TextStyle(fontSize: 16, color: AppColors.textPrimary),
+            mathStyle: MathStyle.display,
+            onErrorFallback: (err) => Text(
+              lineContent,
+              style: (textStyle ?? const TextStyle()).copyWith(
+                color: Colors.red,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class MixedMathText extends StatelessWidget {
+  final String content;
+  final TextStyle? textStyle;
+
+  const MixedMathText({super.key, required this.content, this.textStyle});
+
+  @override
+  Widget build(BuildContext context) {
+    // Regex for matching $...$ delimiters
+    final RegExp exp = RegExp(r'\$([^$]+)\$');
+
+    // Normalize content
+    final String sanitizedContent = content
+        .replaceAll(r'\\n', ' ')
+        .replaceAll('\n', ' ');
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        List<Widget> spans = [];
+
+        sanitizedContent.splitMapJoin(
+          exp,
+          onMatch: (m) {
+            final mathContent = m.group(1) ?? '';
+            final processedMath = mathContent.replaceAll(
+              r'\to',
+              r'\rightarrow',
+            );
+
+            // Wrap math in a scrollable container to prevent overflow
+            spans.add(
+              Container(
+                constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Math.tex(
+                    processedMath,
+                    textStyle:
+                        textStyle ??
+                        const TextStyle(
+                          fontSize: 16,
+                          color: AppColors.textPrimary,
+                        ),
+                    mathStyle: MathStyle.text,
+                    onErrorFallback: (err) => Text(
+                      '\$$mathContent\$',
+                      style: (textStyle ?? const TextStyle()).copyWith(
+                        color: Colors.red,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+            return '';
+          },
+          onNonMatch: (text) {
+            if (text.isNotEmpty) {
+              // Parse bold markdown **text**
+              final RegExp boldExp = RegExp(r'\*\*(.*?)\*\*');
+              text.splitMapJoin(
+                boldExp,
+                onMatch: (m) {
+                  final boldText = m.group(1) ?? '';
+                  spans.add(
+                    Text(
+                      boldText,
+                      style:
+                          (textStyle ??
+                                  const TextStyle(
+                                    fontSize: 16,
+                                    color: AppColors.textPrimary,
+                                  ))
+                              .copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  );
+                  return '';
+                },
+                onNonMatch: (n) {
+                  if (n.isNotEmpty) {
+                    spans.add(
+                      Text(
+                        n,
+                        style:
+                            textStyle ??
+                            const TextStyle(
+                              fontSize: 16,
+                              color: AppColors.textPrimary,
+                            ),
+                      ),
+                    );
+                  }
+                  return '';
+                },
+              );
+            }
+            return '';
+          },
+        );
+
+        return Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: spans,
+        );
+      },
     );
   }
 }
@@ -98,46 +170,12 @@ class HorizontalMathText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    List<String> parts = content.split(r'$');
-    List<Widget> widgets = [];
-
-    for (int i = 0; i < parts.length; i++) {
-      String part = parts[i].trim();
-      if (part.isEmpty) continue;
-
-      // Logic: Only treat as math if inside $ delimiters
-      bool isMath = (i % 2 == 1) || part.contains(r'\');
-
-      if (isMath) {
-        // Math
-        widgets.add(
-          Math.tex(
-            part,
-            textStyle: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-            onErrorFallback: (err) => Text(
-              part,
-              style: const TextStyle(color: Colors.red, fontSize: 12),
-            ),
-          ),
-        );
-      } else {
-        // Text
-        widgets.add(Text(part, style: const TextStyle(fontSize: 12)));
-      }
-      widgets.add(const SizedBox(width: 4));
-    }
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Using Flexible/Expanded in a Row can be tricky if mainAxisSize is min.
-        // For horizontal scroll row, we usually don't need Flexible, just let it scroll in parent.
-        for (var w in widgets) w,
-      ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: MathText(
+        content: content,
+        textStyle: const TextStyle(fontSize: 14),
+      ),
     );
   }
 }

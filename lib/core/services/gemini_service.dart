@@ -181,7 +181,7 @@ class GeminiService {
       OUTPUT FORMAT (JSON ONLY):
       {
         "drill_title": "Short catchy title e.g. 'Fixing Algebra'",
-        "mini_lesson": "STRIP TEXT. 1. Simple explanation (Use NUMBERS, not abstract concepts like 'tiles'). 2. VISUAL EXAMPLE (Vertical steps). 3. Avoid long analogies.\nExample output:\n'To expand brackets, multiply the outside number by EACH inside number.'\nExample:\n- 2(x + 3)\n-> 2 * x + 2 * 3\n-> 2x + 6",
+        "mini_lesson": "STRIP TEXT. 1. Simple explanation (Use NUMBERS, not abstract concepts like 'tiles'). 2. VISUAL EXAMPLE (Vertical steps). 3. Avoid long analogies. 4. MATH: Wrap ALL math expressions in '\$' (e.g. '\$x^2\$'). 5. NEWLINES: YOU MUST USE \\\\n FOR EACH STEP. 6. LISTS: Start every numbered step (e.g. '1.', '2.') with \\\\n.\\nExample output:\\n'To expand brackets, multiply the outside number by EACH inside number.'\\nExample:\\n\\\\n1. Multiply first term: \$2 \\\\times x\$\\n\\\\n2. Multiply second term",
         "vocabulary_bridge": [
           {"term": "Key Term (e.g. 'Perimeter')", "translation": "Chinese Term (e.g. '周长')", "context": "Brief definition in English"}
         ],
@@ -243,7 +243,7 @@ class GeminiService {
       OUTPUT FORMAT (JSON ONLY):
       {
         "drill_title": "Level Up Challenge!",
-        "mini_lesson": "The Mini Lesson text (Analogy + Visual Steps).",
+        "mini_lesson": "The Mini Lesson text (Analogy + Visual Steps). Wrap math in '\$' delimiters. Start numbered steps with \\\\n.",
         "vocabulary_bridge": [
           {"term": "Key Term", "translation": "Chinese Term", "context": "Brief definition"}
         ],
