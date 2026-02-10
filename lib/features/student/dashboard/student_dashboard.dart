@@ -60,7 +60,10 @@ class StudentDashboard extends StatelessWidget {
                 debugPrint("Dashboard querying for studentId: $uid");
 
                 return FutureBuilder<List<AssessmentResult>>(
-                  future: FirebaseService().getAssessments(uid ?? 'unknown'),
+                  future: FirebaseService().getAssessments(
+                    uid ?? 'unknown',
+                    limit: 3,
+                  ),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
@@ -112,8 +115,8 @@ class StudentDashboard extends StatelessWidget {
                       );
                     }
 
-                    // Take top 3 for "Recent Activity"
-                    final recent = snapshot.data!.take(3).toList();
+                    // Already limited by query
+                    final recent = snapshot.data!;
 
                     return Column(
                       children: [

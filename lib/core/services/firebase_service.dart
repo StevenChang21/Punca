@@ -107,11 +107,19 @@ class FirebaseService {
   }
 
   /// Get all past assessments for a student (Future based for easy loading)
-  Future<List<AssessmentResult>> getAssessments(String studentId) async {
-    final snapshot = await _assessments
+  Future<List<AssessmentResult>> getAssessments(
+    String studentId, {
+    int? limit,
+  }) async {
+    var query = _assessments
         .where('studentId', isEqualTo: studentId)
-        .orderBy('createdAt', descending: true)
-        .get();
+        .orderBy('createdAt', descending: true);
+
+    if (limit != null) {
+      query = query.limit(limit);
+    }
+
+    final snapshot = await query.get();
 
     return snapshot.docs.map((doc) {
       final data = doc.data() as Map<String, dynamic>;

@@ -67,7 +67,8 @@ class AssessmentResult {
       imageUrls: imageUrls,
       subject: json['subject'] ?? 'Unknown',
       grade: json['grade'] ?? 'Pending',
-      confidenceBuilder: json['confidence_builder'] ?? '',
+      confidenceBuilder:
+          json['confidence_builder'] ?? json['confidenceBuilder'] ?? '',
       weaknesses:
           ((json['weaknesses'] as List?)
                     ?.map(
@@ -79,9 +80,11 @@ class AssessmentResult {
                     .toList() ??
                 [])
             ..sort((a, b) => b.priority.compareTo(a.priority)),
-      remediationDrills: (json['remediation_drills'] as List? ?? [])
-          .map((d) => RemediationDrill.fromJson(d))
-          .toList(),
+      remediationDrills:
+          ((json['remediation_drills'] ?? json['remediationDrills']) as List? ??
+                  [])
+              .map((d) => RemediationDrill.fromJson(d))
+              .toList(),
       status: AssessmentStatus.completed,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt']) ?? DateTime.now()
@@ -123,7 +126,7 @@ class MistakeInstance {
     return MistakeInstance(
       mistake: json['mistake'] ?? '',
       correction: json['correction'] ?? '',
-      pageNumber: (json['page_number'] as num?)?.toInt() ?? 1,
+      pageNumber: _safeParseInt(json['page_number']) ?? 1,
       questionId: json['question_id']?.toString() ?? '',
     );
   }
@@ -212,7 +215,7 @@ class Weakness {
               .whereType<SyllabusPointer>()
               .toList() ??
           [],
-      priority: (json['priority'] as num?)?.toInt() ?? 5,
+      priority: _safeParseInt(json['priority']) ?? 5,
       mistakeExample: finalMistakeExample,
       correctionExample: finalCorrectionExample,
       instances: parsedInstances,
@@ -256,9 +259,9 @@ class SyllabusPointer {
 
   factory SyllabusPointer.fromJson(Map<String, dynamic> json) {
     return SyllabusPointer(
-      form: (json['form'] as num?)?.toInt() ?? 0,
-      chapterId: (json['chapter_id'] as num?)?.toInt() ?? 0,
-      subtopicId: (json['subtopic_id'] as num?)?.toInt(),
+      form: _safeParseInt(json['form']) ?? 0,
+      chapterId: _safeParseInt(json['chapter_id']) ?? 0,
+      subtopicId: _safeParseInt(json['subtopic_id']),
     );
   }
 
@@ -291,11 +294,9 @@ class RemediationDrill {
     String correctAnswer = json['correct_answer'] ?? '';
 
     // Prefer index if available for strictness
-    if (json['correct_option_index'] != null) {
-      final int idx = json['correct_option_index'];
-      if (idx >= 0 && idx < options.length) {
-        correctAnswer = options[idx];
-      }
+    final int? idx = _safeParseInt(json['correct_option_index']);
+    if (idx != null && idx >= 0 && idx < options.length) {
+      correctAnswer = options[idx];
     }
 
     final vocabularyBridge = (json['vocabulary_bridge'] as List? ?? [])
@@ -364,4 +365,12 @@ class VocabularyItem {
   Map<String, dynamic> toMap() {
     return {'term': term, 'translation': translation, 'context': context};
   }
+}
+
+int? _safeParseInt(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  if (value is String) return int.tryParse(value);
+  return null;
 }
