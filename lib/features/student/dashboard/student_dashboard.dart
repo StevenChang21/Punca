@@ -8,8 +8,33 @@ import 'package:punca_ai/features/student/analysis/history_screen.dart';
 import 'package:punca_ai/features/student/analysis/analysis_result_screen.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
 
-class StudentDashboard extends StatelessWidget {
+class StudentDashboard extends StatefulWidget {
   const StudentDashboard({super.key});
+
+  @override
+  State<StudentDashboard> createState() => _StudentDashboardState();
+}
+
+class _StudentDashboardState extends State<StudentDashboard> {
+  late Future<List<AssessmentResult>> _assessmentsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  void _loadData() {
+    setState(() {
+      final uid = AuthService().currentUser?.uid;
+      debugPrint("Dashboard querying for studentId: $uid");
+      if (uid != null) {
+        _assessmentsFuture = FirebaseService().getAssessments(uid, limit: 3);
+      } else {
+        _assessmentsFuture = Future.value([]);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,105 +79,98 @@ class StudentDashboard extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Dynamic List
-            Builder(
-              builder: (context) {
-                final uid = AuthService().currentUser?.uid;
-                debugPrint("Dashboard querying for studentId: $uid");
+            FutureBuilder<List<AssessmentResult>>(
+              future: _assessmentsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                return FutureBuilder<List<AssessmentResult>>(
-                  future: FirebaseService().getAssessments(
-                    uid ?? 'unknown',
-                    limit: 3,
-                  ),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    if (snapshot.hasError) {
-                      return Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          children: [
-                            const Text(
-                              "Error loading history.",
-                              style: TextStyle(color: Colors.red),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              "${snapshot.error}",
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const HistoryScreen(),
-                                  ),
-                                );
-                              },
-                              child: const Text("Open History Screen"),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(16.0),
-                          child: Text(
-                            "No assessments yet. Snap a picture!",
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ),
-                      );
-                    }
-
-                    // Already limited by query
-                    final recent = snapshot.data!;
-
-                    return Column(
+                if (snapshot.hasError) {
+                  return Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
                       children: [
-                        ...recent.map((assessment) {
-                          return _buildRecentActivityItem(
-                            assessment.subject,
-                            "Grade: ${assessment.grade}",
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      AnalysisResultScreen(result: assessment),
-                                ),
-                              );
-                            },
-                          );
-                        }),
-                        if (snapshot.data!.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const HistoryScreen(),
-                                  ),
-                                );
-                              },
-                              child: const Text("View All History"),
-                            ),
+                        const Text(
+                          "Error loading history.",
+                          style: TextStyle(color: Colors.red),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "${snapshot.error}",
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey,
                           ),
+                          textAlign: TextAlign.center,
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const HistoryScreen(),
+                              ),
+                            );
+                            _loadData();
+                          },
+                          child: const Text("Open History Screen"),
+                        ),
                       ],
-                    );
-                  },
+                    ),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Text(
+                        "No assessments yet. Snap a picture!",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  );
+                }
+
+                // Already limited by query
+                final recent = snapshot.data!;
+
+                return Column(
+                  children: [
+                    ...recent.map((assessment) {
+                      return _buildRecentActivityItem(
+                        assessment.subject,
+                        "Grade: ${assessment.grade}",
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  AnalysisResultScreen(result: assessment),
+                            ),
+                          );
+                          _loadData(); // Refresh on return
+                        },
+                      );
+                    }),
+                    if (snapshot.data!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: TextButton(
+                          onPressed: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const HistoryScreen(),
+                              ),
+                            );
+                            _loadData(); // Refresh on return
+                          },
+                          child: const Text("View All History"),
+                        ),
+                      ),
+                  ],
                 );
               },
             ),
@@ -195,12 +213,13 @@ class StudentDashboard extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           ElevatedButton.icon(
-            onPressed: () {
+            onPressed: () async {
               // We can either push the screen or switch tabs.
               // For a "Scanner", pushing a fullscreen modal often feels better.
-              Navigator.of(
+              await Navigator.of(
                 context,
               ).push(MaterialPageRoute(builder: (_) => const CameraScreen()));
+              _loadData(); // Refresh on return
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.accent,
