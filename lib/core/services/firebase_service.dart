@@ -138,4 +138,34 @@ class FirebaseService {
       ).copyWith(id: doc.id); // Ensure ID is set
     }).toList();
   }
+
+  /// Deletes all assessments AND weaknesses for a specific student
+  Future<void> deleteAllAssessments(String studentId) async {
+    try {
+      // 1. Delete Assessments
+      final assessmentSnapshot = await _assessments
+          .where('studentId', isEqualTo: studentId)
+          .get();
+
+      for (var doc in assessmentSnapshot.docs) {
+        await doc.reference.delete();
+      }
+
+      // 2. Delete Weaknesses
+      final weaknessSnapshot = await _weaknesses
+          .where('studentId', isEqualTo: studentId)
+          .get();
+
+      for (var doc in weaknessSnapshot.docs) {
+        await doc.reference.delete();
+      }
+
+      debugPrint(
+        "Deleted ${assessmentSnapshot.docs.length} assessments and ${weaknessSnapshot.docs.length} weaknesses for $studentId",
+      );
+    } catch (e) {
+      debugPrint("Error deleting all data: $e");
+      rethrow;
+    }
+  }
 }

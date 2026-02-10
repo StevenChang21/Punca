@@ -31,6 +31,62 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  Future<void> _handleClearHistory() async {
+    final uid = AuthService().currentUser?.uid;
+    if (uid == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Clear All History?"),
+        content: const Text(
+          "This will permanently delete all your analysis records.\nThis action cannot be undone.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text("Delete All"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      try {
+        // Show loading
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const Center(child: CircularProgressIndicator()),
+        );
+
+        await FirebaseService().deleteAllAssessments(uid);
+
+        if (mounted) {
+          Navigator.pop(context); // Pop loading
+          setState(() {
+            _loadHistory(); // Refresh list
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("History cleared successfully")),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.pop(context); // Pop loading
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Failed to clear history: $e")),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -39,6 +95,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
         title: const Text("Analysis History"),
         elevation: 0,
         backgroundColor: Colors.transparent,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_forever, color: Colors.grey),
+            tooltip: "Clear History",
+            onPressed: _handleClearHistory,
+          ),
+        ],
       ),
       body: FutureBuilder<List<AssessmentResult>>(
         future: _historyFuture,
@@ -86,14 +149,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 final assessment = list[index];
                 return _HistoryCard(
                   result: assessment,
-                  onTap: () {
-                    Navigator.push(
+                  onTap: () async {
+                    await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) =>
                             AnalysisResultScreen(result: assessment),
                       ),
                     );
+                    _loadHistory();
                   },
                 );
               },
