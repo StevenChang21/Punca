@@ -525,7 +525,7 @@ class WeaknessCard extends StatelessWidget {
               ),
             ),
           ),
-          MathText(
+          MixedMathText(
             content: mathContent,
             textStyle: const TextStyle(fontSize: 14),
           ),
@@ -533,6 +533,9 @@ class WeaknessCard extends StatelessWidget {
       );
     }
 
-    return MathText(content: content, textStyle: const TextStyle(fontSize: 14));
+    return MixedMathText(
+      content: content,
+      textStyle: const TextStyle(fontSize: 14),
+    );
   }
 }
