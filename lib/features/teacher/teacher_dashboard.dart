@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
+import 'package:punca_ai/features/teacher/student_detail_screen.dart';
 
 class TeacherDashboard extends StatelessWidget {
   const TeacherDashboard({super.key});
@@ -17,7 +18,7 @@ class TeacherDashboard extends StatelessWidget {
           const SizedBox(height: 24),
           _buildSectionHeader("Students at Risk"),
           const SizedBox(height: 16),
-          _buildStudentList(),
+          _buildStudentList(context),
         ],
       ),
     );
@@ -139,11 +140,11 @@ class TeacherDashboard extends StatelessWidget {
     );
   }
 
-  Widget _buildStudentList() {
+  Widget _buildStudentList(BuildContext context) {
     // Current User (You) is failing Linear Equations
     final students = [
       {
-        "name": "You (Student)",
+        "name": "Alex Johnson",
         "issue": "Failed Linear Equations I",
         "score": "42%",
       },
@@ -160,6 +161,14 @@ class TeacherDashboard extends StatelessWidget {
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => StudentDetailScreen(student: student),
+                ),
+              );
+            },
             leading: CircleAvatar(
               backgroundColor: Colors.red.withValues(alpha: 0.1),
               child: Text(
