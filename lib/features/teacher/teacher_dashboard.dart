@@ -32,7 +32,7 @@ class TeacherDashboard extends StatelessWidget {
           style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         Text(
-          "Grade 10 Mathematics • Section A",
+          "Form 2 Mathematics • Section A",
           style: TextStyle(
             fontSize: 16,
             color: AppColors.textSecondary,
@@ -49,7 +49,7 @@ class TeacherDashboard extends StatelessWidget {
         Expanded(
           child: _buildStatCard(
             "Class Average",
-            "76%",
+            "72%",
             Icons.bar_chart,
             Colors.blue,
             "B Grade",
@@ -59,10 +59,10 @@ class TeacherDashboard extends StatelessWidget {
         Expanded(
           child: _buildStatCard(
             "Top Weakness",
-            "Trig",
+            "Linear Eq.",
             Icons.warning_amber_rounded,
             Colors.orange,
-            "12 Students",
+            "5 Students",
           ),
         ),
       ],
@@ -140,10 +140,11 @@ class TeacherDashboard extends StatelessWidget {
   }
 
   Widget _buildStudentList() {
+    // Current User (You) is failing Linear Equations
     final students = [
       {
-        "name": "Alex Johnson",
-        "issue": "Struggling with Algebra",
+        "name": "You (Student)",
+        "issue": "Failed Linear Equations I",
         "score": "42%",
       },
       {"name": "Sarah Lee", "issue": "Missed 3 assignments", "score": "55%"},
