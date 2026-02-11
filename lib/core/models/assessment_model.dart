@@ -15,6 +15,7 @@ class AssessmentResult {
   final String? paperId; // Optional firestore ID
   final List<String> imageUrls;
   final String subject;
+  final List<String> topics; // New field for granularity
   final String grade;
   final String confidenceBuilder;
   final List<Weakness> weaknesses;
@@ -28,6 +29,7 @@ class AssessmentResult {
     this.paperId,
     required this.imageUrls,
     required this.subject,
+    this.topics = const [],
     required this.grade,
     required this.confidenceBuilder,
     required this.weaknesses,
@@ -46,6 +48,7 @@ class AssessmentResult {
       paperId: paperId,
       imageUrls: imageUrls,
       subject: subject,
+      topics: topics,
       grade: grade,
       confidenceBuilder: confidenceBuilder,
       weaknesses: weaknesses,
@@ -66,6 +69,7 @@ class AssessmentResult {
       studentId: studentId,
       imageUrls: imageUrls,
       subject: json['subject'] ?? 'Unknown',
+      topics: List<String>.from(json['topics_identified'] ?? []),
       grade: json['grade'] ?? 'Pending',
       confidenceBuilder:
           json['confidence_builder'] ?? json['confidenceBuilder'] ?? '',
@@ -99,6 +103,7 @@ class AssessmentResult {
       'imageUrls': imageUrls,
       'imageUrl': imageUrls.isNotEmpty ? imageUrls.first : null, // Legacy
       'subject': subject,
+      'topics': topics,
       'grade': grade,
       'confidenceBuilder': confidenceBuilder,
       'weaknesses': weaknesses.map((w) => w.toMap()).toList(),

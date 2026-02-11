@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
+import 'package:punca_ai/core/constants/kssm_syllabus.dart';
 import 'package:flutter/foundation.dart';
 
 /* id: 2 */
@@ -167,5 +168,131 @@ class FirebaseService {
       debugPrint("Error deleting all data: $e");
       rethrow;
     }
+  }
+
+  /// Calculates mastery stats (average grade) per subject/topic
+  /// If [subject] is provided, returns granular breakdown by TOPIC within that subject.
+  /// If [subject] is null, returns breakdown by SUBJECT.
+  Future<Map<String, double>> getMasteryStats(
+    String studentId, {
+    String? subject,
+  }) async {
+    try {
+      final assessments = await getAssessments(studentId);
+
+      Map<String, List<double>> keyScores = {};
+
+      // 1. Pre-fill Syllabus for "Math" to show full grid
+      if (subject == "Math") {
+        KssmSyllabus.structure.forEach((form, chapters) {
+          // DEMO LIMITATION: Only show Form 1 & 2 for now (Simulated "Form 2 Student")
+          if (form <= 2) {
+            for (var chap in chapters) {
+              // "F1 C01: Title" format for sorting
+              final key =
+                  "F$form C${chap.id.toString().padLeft(2, '0')}: ${chap.title}";
+              keyScores[key] = [];
+            }
+          }
+        });
+      }
+
+      if (assessments.isEmpty && subject != "Math") return {};
+
+      // Filter by subject if requested
+      final filteredAssessments = subject != null
+          ? assessments.where((a) => a.subject == subject).toList()
+          : assessments;
+
+      if (filteredAssessments.isEmpty && keyScores.isEmpty) return {};
+
+      // Helper to find matching key in pre-filled list
+      String? findMatchingKey(String topic) {
+        // 1. Try exact match (ignoring "F1 C01: " prefix in keys)
+        // keys are "F1 C01: Rational Numbers"
+        // topic might be "Rational Numbers"
+        for (var key in keyScores.keys) {
+          if (key.endsWith(": $topic") ||
+              key.toLowerCase().endsWith(": ${topic.toLowerCase()}")) {
+            return key;
+          }
+        }
+        // 2. Try partial/fuzzy?
+        // Gemini might say "Integers" which is F1 C1 Subtopic 1.
+        // For now, if no match, return generic topic name.
+        return null;
+      }
+
+      for (var assessment in filteredAssessments) {
+        double? score = _parseGrade(assessment.grade);
+        if (score != null) {
+          if (subject == null) {
+            // Aggregate by SUBJECT
+            if (!keyScores.containsKey(assessment.subject)) {
+              keyScores[assessment.subject] = [];
+            }
+            keyScores[assessment.subject]!.add(score);
+          } else {
+            // Aggregate by TOPIC
+            final topics = assessment.topics.isNotEmpty
+                ? assessment.topics
+                : ['General'];
+
+            for (var topic in topics) {
+              String key = topic;
+              // Try to map to KSSM key if possible
+              if (subject == "Math") {
+                final match = findMatchingKey(topic);
+                if (match != null) {
+                  key = match;
+                } else {
+                  // Fallback: Check if it's already a key we added? (unlikely)
+                  // Or just keep original string.
+                  // Maybe prefix with "Misc: " to put at end?
+                  // key = "Misc: $topic";
+                }
+              }
+
+              if (!keyScores.containsKey(key)) {
+                keyScores[key] = [];
+              }
+              keyScores[key]!.add(score);
+            }
+          }
+        }
+      }
+
+      // Calculate Averages
+      Map<String, double> mastery = {};
+      keyScores.forEach((key, scores) {
+        if (scores.isEmpty) {
+          mastery[key] = 0.0; // Unattempted
+        } else {
+          final avg = scores.reduce((a, b) => a + b) / scores.length;
+          mastery[key] = avg / 100.0;
+        }
+      });
+
+      // Sort keys (alphabetically, which works for "F1 C01..." format)
+      final sortedKeys = mastery.keys.toList()..sort();
+      final Map<String, double> sortedMastery = {
+        for (var k in sortedKeys) k: mastery[k]!,
+      };
+
+      return sortedMastery;
+    } catch (e) {
+      debugPrint("Error calculating mastery: $e");
+      return {};
+    }
+  }
+
+  double? _parseGrade(String gradeString) {
+    // Tries to find a number in "B (76%)" -> 76.0
+    final regex = RegExp(r'(\d+)%?');
+    final match = regex.firstMatch(gradeString);
+    if (match != null) {
+      return double.tryParse(match.group(1)!);
+    }
+    return null;
   }
 }
