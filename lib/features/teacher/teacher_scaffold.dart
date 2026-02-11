@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/features/teacher/teacher_dashboard.dart';
+import 'package:punca_ai/features/teacher/teacher_student_list.dart';
 
 class TeacherScaffold extends StatefulWidget {
   const TeacherScaffold({super.key});
@@ -14,7 +15,7 @@ class _TeacherScaffoldState extends State<TeacherScaffold> {
 
   final List<Widget> _screens = [
     const TeacherDashboard(),
-    const Center(child: Text("Students List (Placeholder)")),
+    const TeacherStudentList(),
     const Center(child: Text("Reports (Placeholder)")),
     const TeacherProfileTab(),
   ];
