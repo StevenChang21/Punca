@@ -1,7 +1,7 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
-import 'package:punca_ai/features/teacher/widgets/gap_analysis_chart.dart';
-
 import 'package:punca_ai/core/services/firebase_service.dart';
 
 class StudentDetailScreen extends StatefulWidget {
@@ -15,6 +15,7 @@ class StudentDetailScreen extends StatefulWidget {
 
 class _StudentDetailScreenState extends State<StudentDetailScreen> {
   late Future<Map<String, double>> _gapAnalysisFuture;
+  bool _isLoadingRemediation = false;
 
   @override
   void initState() {
@@ -34,7 +35,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Check if this is the "Real" student (Alex Johnson / You)
+    // Check if this is the "Real" student
     final isRealStudent = !widget.student['id']!.startsWith('mock_');
 
     return Scaffold(
@@ -51,9 +52,9 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
           children: [
             _buildStudentHeader(isRealStudent),
             const SizedBox(height: 24),
-            _buildWeaknessAnalysis(isRealStudent),
+            _buildMistakeComposition(isRealStudent),
             const SizedBox(height: 24),
-            _buildActionableSteps(context),
+            _buildActionableSteps(context, isRealStudent),
           ],
         ),
       ),
@@ -119,7 +120,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     );
   }
 
-  Widget _buildWeaknessAnalysis(bool isRealStudent) {
+  Widget _buildMistakeComposition(bool isRealStudent) {
     return FutureBuilder<Map<String, double>>(
       future: _gapAnalysisFuture,
       builder: (context, snapshot) {
@@ -136,8 +137,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
           children: [
             Text(
               isRealStudent
-                  ? "Your Gap Analysis (Real Data)"
-                  : "Weakness Breakdown (Mock)",
+                  ? "Mistake Composition (Real Data)"
+                  : "Mistake Composition (Mock)",
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -145,64 +146,116 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            // Real Gap Analysis Chart
-            GapAnalysisChart(
-              foundationPct: data['foundation']!,
-              executionPct: data['execution']!,
-              precisionPct: data['precision']!,
+            // Pie Chart Section
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  // Simple Custom Pie Chart
+                  SizedBox(
+                    height: 120,
+                    width: 120,
+                    child: CustomPaint(painter: _SimplePieChartPainter(data)),
+                  ),
+                  const SizedBox(width: 24),
+                  // Legend
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLegendItem(
+                          "Concept",
+                          data['foundation']!,
+                          Colors.red,
+                        ),
+                        const SizedBox(height: 8),
+                        _buildLegendItem(
+                          "Process",
+                          data['execution']!,
+                          Colors.orange,
+                        ),
+                        const SizedBox(height: 8),
+                        _buildLegendItem(
+                          "Careless",
+                          data['precision']!,
+                          Colors.blue,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 24),
-            // Existing Skill Bars (Static for now, could be dynamic later)
-            if (isRealStudent) ...[
-              const Text(
-                "Top Weakness Areas:",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-            ],
-            _buildSkillBar("Algebraic Expansion", 0.40, Colors.red),
-            _buildSkillBar("Factorisation", 0.55, Colors.orange),
+            // Top Weakness Areas
+            const Text(
+              "Top 3 Weak Topics",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            _buildWeakTopicItem("1. Algebraic Expansion", "Concept Error"),
+            _buildWeakTopicItem("2. Factorisation", "Process Error"),
+            _buildWeakTopicItem("3. Linear Equations", "Careless Error"),
           ],
         );
       },
     );
   }
 
-  Widget _buildSkillBar(String skill, double mastery, Color color) {
+  Widget _buildLegendItem(String label, double pct, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          "$label ${(pct * 100).toInt()}%",
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWeakTopicItem(String topic, String reason) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(skill, style: const TextStyle(fontWeight: FontWeight.w600)),
-              Text(
-                "${(mastery * 100).toInt()}%",
-                style: TextStyle(color: color, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          LinearProgressIndicator(
-            value: mastery,
-            backgroundColor: Colors.grey[200],
-            color: color,
-            minHeight: 8,
-            borderRadius: BorderRadius.circular(4),
+          Text(topic, style: TextStyle(color: Colors.grey[800], fontSize: 15)),
+          Text(
+            reason,
+            style: const TextStyle(
+              color: Colors.red,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildActionableSteps(BuildContext context) {
+  Widget _buildActionableSteps(BuildContext context, bool isRealStudent) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          "Recommended Remediation",
+          "Recommended Action",
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -214,12 +267,33 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
           width: double.infinity,
           child: ElevatedButton.icon(
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Remediation Pack Assigned!")),
-              );
+              setState(() => _isLoadingRemediation = true);
+              Future.delayed(const Duration(seconds: 2), () {
+                if (context.mounted) {
+                  setState(() => _isLoadingRemediation = false);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Targeted Remediation Pack Assigned!"),
+                    ),
+                  );
+                }
+              });
             },
-            icon: const Icon(Icons.assignment),
-            label: const Text("Assign Remediation Pack"),
+            icon: _isLoadingRemediation
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.assignment_turned_in),
+            label: Text(
+              _isLoadingRemediation
+                  ? "Generating Pack..."
+                  : "Assign Targeted Remediation Pack",
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
@@ -227,10 +301,55 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
+              elevation: 4,
             ),
           ),
         ),
       ],
     );
   }
+}
+
+class _SimplePieChartPainter extends CustomPainter {
+  final Map<String, double> data;
+
+  _SimplePieChartPainter(this.data);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = min(size.width / 2, size.height / 2);
+
+    double startAngle = -pi / 2;
+
+    // Colors mapping
+    final colors = {
+      'foundation': Colors.red,
+      'execution': Colors.orange,
+      'precision': Colors.blue,
+    };
+
+    data.forEach((key, value) {
+      final sweepAngle = 2 * pi * value;
+      final paint = Paint()
+        ..color = colors[key] ?? Colors.grey
+        ..style = PaintingStyle.fill;
+
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle,
+        true,
+        paint,
+      );
+      startAngle += sweepAngle;
+    });
+
+    // Draw hole for Donut effect (optional, looks nicer)
+    final holePaint = Paint()..color = Colors.white;
+    canvas.drawCircle(center, radius * 0.5, holePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

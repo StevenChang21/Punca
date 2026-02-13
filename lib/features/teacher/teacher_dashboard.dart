@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
-import 'package:punca_ai/core/services/auth_service.dart';
-import 'package:punca_ai/features/teacher/widgets/class_heatmap.dart';
-import 'package:punca_ai/features/teacher/student_detail_screen.dart';
 
 class TeacherDashboard extends StatelessWidget {
   const TeacherDashboard({super.key});
@@ -14,60 +11,43 @@ class TeacherDashboard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(),
+          const Text(
+            "Overview",
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
           const SizedBox(height: 24),
-          _buildQuickStats(),
+          _buildGlobalStats(),
           const SizedBox(height: 24),
-          const ClassHeatmap(), // Added Heatmap
+          _buildAlertsSection(),
           const SizedBox(height: 24),
-          _buildSectionHeader("Students at Risk"),
-          const SizedBox(height: 16),
-          _buildStudentList(context),
+          _buildQuickActions(context),
         ],
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Class Dashboard",
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
-        Text(
-          "Form 2 Mathematics • Section A",
-          style: TextStyle(
-            fontSize: 16,
-            color: AppColors.textSecondary,
-            fontWeight: FontWeight.normal,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickStats() {
+  Widget _buildGlobalStats() {
     return Row(
       children: [
         Expanded(
           child: _buildStatCard(
-            "Class Average",
-            "72%",
-            Icons.bar_chart,
+            "Total Students",
+            "72",
+            Icons.people,
             Colors.blue,
-            "B Grade",
           ),
         ),
         const SizedBox(width: 16),
         Expanded(
           child: _buildStatCard(
-            "Top Weakness",
-            "Linear Eq.",
-            Icons.warning_amber_rounded,
-            Colors.orange,
-            "5 Students",
+            "Avg Mastery",
+            "68%",
+            Icons.bar_chart,
+            Colors.green,
           ),
         ),
       ],
@@ -79,14 +59,12 @@ class TeacherDashboard extends StatelessWidget {
     String value,
     IconData icon,
     Color color,
-    String subtitle,
   ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -98,25 +76,12 @@ class TeacherDashboard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Icon(icon, color: color),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
+          Icon(icon, color: color, size: 28),
           const SizedBox(height: 12),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 28,
+              fontSize: 32,
               fontWeight: FontWeight.bold,
               color: AppColors.textPrimary,
             ),
@@ -127,81 +92,159 @@ class TeacherDashboard extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildAlertsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: const TextStyle(
+        const Text(
+          "Needs Attention",
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
             color: AppColors.textPrimary,
           ),
         ),
-        TextButton(onPressed: () {}, child: const Text("View All")),
+        const SizedBox(height: 16),
+        _buildAlertCard(
+          "5 Students Failing Linear Equations",
+          "Form 2 Mathematics",
+          Colors.orange,
+        ),
+        const SizedBox(height: 12),
+        _buildAlertCard(
+          "Homework Submission Overdue",
+          "Form 4 Add Math",
+          Colors.red,
+        ),
       ],
     );
   }
 
-  Widget _buildStudentList(BuildContext context) {
-    // Current User (You)
-    final user = AuthService().currentUser;
-    final students = [
-      {
-        "name": user?.displayName ?? user?.email ?? "You (Student)",
-        "id": user?.uid ?? "", // Pass real ID
-        "issue": "Failed Linear Equations I",
-        "score": "42%",
-      },
-      // ... Mock others for context
-      {
-        "name": "Sarah Lee",
-        "id": "mock_1",
-        "issue": "Missed 3 assignments",
-        "score": "55%",
-      },
-      {
-        "name": "Michael Chen",
-        "id": "mock_2",
-        "issue": "Needs remediation logic",
-        "score": "61%",
-      },
-    ];
+  Widget _buildAlertCard(String title, String subtitle, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border(left: BorderSide(color: color, width: 4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right, color: Colors.grey[400]),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildQuickActions(BuildContext context) {
     return Column(
-      children: students.map((student) {
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ListTile(
-            onTap: () {
-              Navigator.push(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          "Quick Actions",
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _buildActionButton(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => StudentDetailScreen(student: student),
-                ),
-              );
-            },
-            leading: CircleAvatar(
-              backgroundColor: Colors.red.withValues(alpha: 0.1),
-              child: Text(
-                student["score"]!,
-                style: const TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
+                "Create Class",
+                Icons.add_box_outlined,
+                Colors.indigo,
+                () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Create Class functionality coming soon!"),
+                    ),
+                  );
+                },
               ),
             ),
-            title: Text(
-              student["name"]!,
-              style: const TextStyle(fontWeight: FontWeight.w600),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildActionButton(
+                context,
+                "Broadcast",
+                Icons.send_outlined,
+                Colors.purple,
+                () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Broadcast functionality coming soon!"),
+                    ),
+                  );
+                },
+              ),
             ),
-            subtitle: Text(student["issue"]!),
-            trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButton(
+    BuildContext context,
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+            borderRadius: BorderRadius.circular(12),
           ),
-        );
-      }).toList(),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 32),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: TextStyle(fontWeight: FontWeight.w600, color: color),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
