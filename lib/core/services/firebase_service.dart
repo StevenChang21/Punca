@@ -422,7 +422,6 @@ class FirebaseService {
       final snapshot = await _firestore
           .collection('classrooms')
           .where('teacherId', isEqualTo: teacherId)
-          .orderBy('createdAt', descending: true)
           .get();
       return snapshot.docs.map((doc) {
         final data = doc.data();
