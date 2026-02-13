@@ -396,6 +396,24 @@ class FirebaseService {
 
   // ── Classroom Methods ──
 
+  /// Create a new classroom. Returns the classroom ID.
+  Future<String> createClassroom({
+    required String teacherId,
+    required String teacherName,
+    required String className,
+    required String code,
+  }) async {
+    final docRef = await _firestore.collection('classrooms').add({
+      'name': className,
+      'teacherId': teacherId,
+      'teacherName': teacherName,
+      'code': code,
+      'studentIds': [],
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    return docRef.id;
+  }
+
   /// Join a classroom by ID and code. Returns null on success, error string on failure.
   Future<String?> joinClassroom(
     String studentId,

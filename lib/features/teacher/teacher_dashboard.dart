@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 import 'package:punca_ai/config/app_theme.dart';
+import 'package:punca_ai/core/services/auth_service.dart';
+import 'package:punca_ai/core/services/firebase_service.dart';
 
 class TeacherDashboard extends StatelessWidget {
   const TeacherDashboard({super.key});
@@ -184,11 +187,7 @@ class TeacherDashboard extends StatelessWidget {
                 Icons.add_box_outlined,
                 Colors.indigo,
                 () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Create Class functionality coming soon!"),
-                    ),
-                  );
+                  _showCreateClassDialog(context);
                 },
               ),
             ),
@@ -246,5 +245,137 @@ class TeacherDashboard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _showCreateClassDialog(BuildContext context) {
+    final classNameController = TextEditingController();
+    final generatedCode = _generateCode();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Create New Classroom"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: classNameController,
+              decoration: const InputDecoration(
+                labelText: "Class Name",
+                hintText: "e.g. Form 2 Mathematics",
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Generated Code",
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    generatedCode,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final name = classNameController.text.trim();
+              if (name.isEmpty) return;
+
+              final user = AuthService().currentUser;
+              if (user == null) return;
+
+              final userName = await AuthService().getUserName(user.uid);
+
+              final classroomId = await FirebaseService().createClassroom(
+                teacherId: user.uid,
+                teacherName: userName ?? user.email ?? 'Teacher',
+                className: name,
+                code: generatedCode,
+              );
+
+              if (!context.mounted) return;
+              Navigator.pop(ctx);
+
+              // Show success with ID and Code
+              showDialog(
+                context: context,
+                builder: (ctx2) => AlertDialog(
+                  title: const Text("Classroom Created! 🎉"),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Share these with your students:"),
+                      const SizedBox(height: 16),
+                      _buildInfoRow("Classroom ID", classroomId),
+                      const SizedBox(height: 8),
+                      _buildInfoRow("Access Code", generatedCode),
+                    ],
+                  ),
+                  actions: [
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(ctx2),
+                      child: const Text("Done"),
+                    ),
+                  ],
+                ),
+              );
+            },
+            child: const Text("Create"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          const SizedBox(height: 4),
+          SelectableText(
+            value,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _generateCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final rand = Random();
+    return List.generate(6, (_) => chars[rand.nextInt(chars.length)]).join();
   }
 }
