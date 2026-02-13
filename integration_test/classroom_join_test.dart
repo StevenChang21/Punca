@@ -73,13 +73,13 @@ void main() {
     testWidgets('4. Student classroom data is returned', (tester) async {
       final uid = AuthService().currentUser!.uid;
 
-      final classroom = await firebaseService.getStudentClassroom(uid);
+      final classrooms = await firebaseService.getStudentClassrooms(uid);
 
-      expect(classroom, isNotNull);
-      expect(classroom!['name'], equals(testClassName));
-      expect(classroom['code'], equals(testCode));
-      expect((classroom['studentIds'] as List), contains(uid));
-      debugPrint('✅ Classroom data verified: ${classroom['name']}');
+      expect(classrooms, isNotEmpty);
+      expect(classrooms[0]['name'], equals(testClassName));
+      expect(classrooms[0]['code'], equals(testCode));
+      expect((classrooms[0]['studentIds'] as List), contains(uid));
+      debugPrint('✅ Classroom data verified: ${classrooms[0]['name']}');
     });
 
     testWidgets('5. Cannot join same class again', (tester) async {
@@ -101,8 +101,9 @@ void main() {
 
       await firebaseService.leaveClassroom(uid, testClassroomId);
 
-      final classroom = await firebaseService.getStudentClassroom(uid);
-      expect(classroom, isNull);
+      final classrooms = await firebaseService.getStudentClassrooms(uid);
+      final found = classrooms.any((c) => c['id'] == testClassroomId);
+      expect(found, isFalse);
       debugPrint('✅ Successfully left classroom');
     });
 

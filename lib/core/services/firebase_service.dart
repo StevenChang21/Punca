@@ -459,17 +459,18 @@ class FirebaseService {
 
       // Check if already enrolled
       final studentIds = List<String>.from(data['studentIds'] ?? []);
-      if (studentIds.contains(studentId))
+      if (studentIds.contains(studentId)) {
         return "You are already in this class.";
+      }
 
       // Add student to classroom
       await _firestore.collection('classrooms').doc(classroomId).update({
         'studentIds': FieldValue.arrayUnion([studentId]),
       });
 
-      // Save classroomId to user doc
+      // Add classroomId to user's classroomIds array
       await _firestore.collection('users').doc(studentId).update({
-        'classroomId': classroomId,
+        'classroomIds': FieldValue.arrayUnion([classroomId]),
       });
 
       return null; // Success
@@ -479,27 +480,36 @@ class FirebaseService {
     }
   }
 
-  /// Get the classroom data for a student, or null if not enrolled.
-  Future<Map<String, dynamic>?> getStudentClassroom(String studentId) async {
+  /// Get all classrooms a student is enrolled in.
+  Future<List<Map<String, dynamic>>> getStudentClassrooms(
+    String studentId,
+  ) async {
     try {
       final userDoc = await _firestore.collection('users').doc(studentId).get();
-      if (!userDoc.exists) return null;
+      if (!userDoc.exists) return [];
 
-      final classroomId = userDoc.data()?['classroomId'] as String?;
-      if (classroomId == null || classroomId.isEmpty) return null;
+      final classroomIds = List<String>.from(
+        userDoc.data()?['classroomIds'] ?? [],
+      );
+      if (classroomIds.isEmpty) return [];
 
-      final classDoc = await _firestore
-          .collection('classrooms')
-          .doc(classroomId)
-          .get();
-      if (!classDoc.exists) return null;
-
-      final data = classDoc.data() as Map<String, dynamic>;
-      data['id'] = classDoc.id;
-      return data;
+      final classrooms = <Map<String, dynamic>>[];
+      for (final id in classroomIds) {
+        final classDoc = await _firestore
+            .collection('classrooms')
+            .doc(id)
+            .get();
+        if (classDoc.exists) {
+          final data = classDoc.data() as Map<String, dynamic>;
+          data['id'] = classDoc.id;
+          data['studentCount'] = (data['studentIds'] as List?)?.length ?? 0;
+          classrooms.add(data);
+        }
+      }
+      return classrooms;
     } catch (e) {
-      debugPrint("Error getting student classroom: $e");
-      return null;
+      debugPrint("Error getting student classrooms: $e");
+      return [];
     }
   }
 
@@ -510,11 +520,43 @@ class FirebaseService {
         'studentIds': FieldValue.arrayRemove([studentId]),
       });
       await _firestore.collection('users').doc(studentId).update({
-        'classroomId': FieldValue.delete(),
+        'classroomIds': FieldValue.arrayRemove([classroomId]),
       });
     } catch (e) {
       debugPrint("Error leaving classroom: $e");
       rethrow;
+    }
+  }
+
+  /// Get members (students) of a classroom with their display names.
+  Future<List<Map<String, dynamic>>> getClassroomMembers(
+    String classroomId,
+  ) async {
+    try {
+      final classDoc = await _firestore
+          .collection('classrooms')
+          .doc(classroomId)
+          .get();
+      if (!classDoc.exists) return [];
+
+      final studentIds = List<String>.from(
+        classDoc.data()?['studentIds'] ?? [],
+      );
+      final members = <Map<String, dynamic>>[];
+      for (final uid in studentIds) {
+        final userDoc = await _firestore.collection('users').doc(uid).get();
+        if (userDoc.exists) {
+          members.add({
+            'uid': uid,
+            'displayName': userDoc.data()?['displayName'] ?? 'Student',
+            'form': userDoc.data()?['form'] ?? '',
+          });
+        }
+      }
+      return members;
+    } catch (e) {
+      debugPrint("Error getting classroom members: $e");
+      return [];
     }
   }
 }
