@@ -20,6 +20,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   String _studentName = "Student";
   int _scannedCount = 0;
   int _weakAreaCount = 0;
+  Map<String, dynamic>? _classroomData; // null = not joined
 
   @override
   void initState() {
@@ -27,6 +28,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
     _loadData();
     _loadUserName();
     _loadStats();
+    _loadClassroom();
   }
 
   Future<void> _loadUserName() async {
@@ -50,6 +52,15 @@ class _StudentDashboardState extends State<StudentDashboard> {
         _scannedCount = scanned;
         _weakAreaCount = weakAreas;
       });
+    }
+  }
+
+  Future<void> _loadClassroom() async {
+    final uid = AuthService().currentUser?.uid;
+    if (uid == null) return;
+    final data = await FirebaseService().getStudentClassroom(uid);
+    if (mounted) {
+      setState(() => _classroomData = data);
     }
   }
 
@@ -100,20 +111,10 @@ class _StudentDashboardState extends State<StudentDashboard> {
           children: [
             _buildActionCard(context),
             const SizedBox(height: 16),
-            // Join Class Button — standalone
-            OutlinedButton.icon(
-              onPressed: () => _showJoinClassDialog(context),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
-                minimumSize: const Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              icon: const Icon(Icons.class_),
-              label: const Text("Join a Classroom"),
-            ),
+            // Conditional: Join Button vs Classroom Card
+            _classroomData != null
+                ? _buildClassroomCard()
+                : _buildJoinClassButton(),
             const SizedBox(height: 24),
             _buildSectionHeader("Your Progress"),
             const SizedBox(height: 16),
@@ -226,6 +227,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 
+  // ── Action Card ──
   Widget _buildActionCard(BuildContext context) {
     return Container(
       width: double.infinity,
@@ -278,13 +280,136 @@ class _StudentDashboardState extends State<StudentDashboard> {
     );
   }
 
+  // ── Join Class Button ──
+  Widget _buildJoinClassButton() {
+    return OutlinedButton.icon(
+      onPressed: () => _showJoinClassDialog(context),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primary,
+        side: const BorderSide(color: AppColors.primary),
+        minimumSize: const Size(double.infinity, 50),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+      icon: const Icon(Icons.class_),
+      label: const Text("Join a Classroom"),
+    );
+  }
+
+  // ── Classroom Card (shown when joined) ──
+  Widget _buildClassroomCard() {
+    final className = _classroomData?['name'] ?? 'My Classroom';
+    final teacherName = _classroomData?['teacherName'] ?? 'Teacher';
+    final classroomId = _classroomData?['id'] ?? '';
+    final studentCount = (_classroomData?['studentIds'] as List?)?.length ?? 0;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.class_, color: AppColors.primary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      className,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      "Teacher: $teacherName",
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Student count badge
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.people,
+                      size: 14,
+                      color: AppColors.primary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      "$studentCount",
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Leave button
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => _confirmLeaveClass(classroomId),
+              style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+              icon: const Icon(Icons.exit_to_app, size: 16),
+              label: const Text("Leave Class", style: TextStyle(fontSize: 13)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Join Class Dialog ──
   void _showJoinClassDialog(BuildContext context) {
     final classroomIdController = TextEditingController();
     final classroomCodeController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text("Join Classroom"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -308,20 +433,35 @@ class _StudentDashboardState extends State<StudentDashboard> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text("Cancel"),
           ),
           ElevatedButton(
-            onPressed: () {
-              // TODO: Implement actual join logic
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    "Joining Class ID: ${classroomIdController.text} with Code: ${classroomCodeController.text}",
-                  ),
-                ),
+            onPressed: () async {
+              final uid = AuthService().currentUser?.uid;
+              if (uid == null) return;
+
+              final error = await FirebaseService().joinClassroom(
+                uid,
+                classroomIdController.text.trim(),
+                classroomCodeController.text.trim(),
               );
+
+              if (!context.mounted) return;
+              Navigator.pop(ctx);
+
+              if (error != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(error), backgroundColor: Colors.red),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Successfully joined classroom! 🎉"),
+                  ),
+                );
+                _loadClassroom(); // Refresh UI
+              }
             },
             child: const Text("Join"),
           ),
@@ -329,6 +469,43 @@ class _StudentDashboardState extends State<StudentDashboard> {
       ),
     );
   }
+
+  // ── Confirm Leave ──
+  void _confirmLeaveClass(String classroomId) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Leave Classroom?"),
+        content: const Text(
+          "Are you sure you want to leave this classroom? You can rejoin later with the code.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final uid = AuthService().currentUser?.uid;
+              if (uid == null) return;
+              Navigator.pop(ctx);
+              await FirebaseService().leaveClassroom(uid, classroomId);
+              if (mounted) {
+                setState(() => _classroomData = null);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Left classroom.")),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text("Leave"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Helpers ──
 
   Widget _buildSectionHeader(String title) {
     return Text(
