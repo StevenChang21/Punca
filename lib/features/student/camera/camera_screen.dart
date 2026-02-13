@@ -4,6 +4,7 @@ import 'package:punca_ai/features/student/analysis/analysis_result_screen.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
 
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 
 import 'package:punca_ai/core/services/gemini_service.dart';
 import 'package:punca_ai/core/services/firebase_service.dart';
@@ -26,13 +27,38 @@ class CameraScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _pickPdf(BuildContext context) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+
+      if (result != null &&
+          result.files.single.path != null &&
+          context.mounted) {
+        final pdfPath = result.files.single.path!;
+        final fileName = result.files.single.name;
+        _showAnalysisProgress(
+          context,
+          imagePaths: [pdfPath],
+          images: [],
+          pdfPath: pdfPath,
+          pdfName: fileName,
+        );
+      }
+    } catch (e) {
+      debugPrint("Error picking PDF: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Placeholder for Camera Preview
+          // Background
           Center(
             child: Container(
               width: double.infinity,
@@ -42,43 +68,21 @@ class CameraScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Icons.photo_library_outlined,
+                    Icons.document_scanner_outlined,
                     size: 80,
                     color: Colors.white24,
                   ),
                   SizedBox(height: 16),
                   Text(
-                    "Please select from Gallery",
+                    "Upload your work for AI analysis",
                     style: TextStyle(color: Colors.white54, fontSize: 18),
                   ),
-                ],
-              ),
-            ),
-          ),
-
-          // Guidelines Overlay
-          Positioned(
-            top: 100,
-            left: 20,
-            right: 20,
-            bottom: 200,
-            child: Container(
-              decoration: BoxDecoration(
-                border: Border.all(color: AppColors.accent, width: 2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Align(
-                alignment: Alignment.topCenter,
-                child: Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: Text(
-                    "Select multiple pages if needed",
-                    style: TextStyle(
-                      color: Colors.white,
-                      shadows: [Shadow(blurRadius: 4, color: Colors.black)],
-                    ),
+                  SizedBox(height: 8),
+                  Text(
+                    "Select photos or a PDF file",
+                    style: TextStyle(color: Colors.white30, fontSize: 14),
                   ),
-                ),
+                ],
               ),
             ),
           ),
@@ -95,58 +99,69 @@ class CameraScreen extends StatelessWidget {
                   children: [
                     // Exit Button
                     IconButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
+                      onPressed: () => Navigator.pop(context),
                       icon: const Icon(
                         Icons.close,
                         color: Colors.white,
                         size: 30,
                       ),
                     ),
-                    // Take Picture Button (DISABLED/TOAST)
-                    GestureDetector(
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              "Camera is currently unavailable. Please use Gallery.",
-                            ),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[400], // Greyed out
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.grey, width: 4),
-                        ),
-                        child: const Icon(
-                          Icons.no_photography,
-                          color: Colors.white54,
-                        ),
-                      ),
+                    // Gallery Button (Photos)
+                    _buildUploadButton(
+                      icon: Icons.photo_library,
+                      label: "Photos",
+                      onTap: () => _pickImages(context),
                     ),
-                    // Pick from Gallery Button
-                    IconButton(
-                      onPressed: () => _pickImages(context),
-                      icon: const Icon(
-                        Icons.image,
-                        color: Colors.white,
-                        size: 30,
-                      ),
-                      tooltip: "Pick from Gallery",
+                    // PDF Button
+                    _buildUploadButton(
+                      icon: Icons.picture_as_pdf,
+                      label: "PDF",
+                      color: Colors.red[400]!,
+                      onTap: () => _pickPdf(context),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  "Tap Gallery to Select Pages",
+                  "Choose Photos or PDF to Analyze",
                   style: TextStyle(color: Colors.white70),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUploadButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color color = Colors.white,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+              border: Border.all(color: color.withValues(alpha: 0.4), width: 2),
+            ),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -158,18 +173,23 @@ class CameraScreen extends StatelessWidget {
     BuildContext context, {
     required List<String> imagePaths,
     required List<XFile> images,
+    String? pdfPath,
+    String? pdfName,
   }) async {
     if (imagePaths.isEmpty) return;
 
-    // 1. Show Overlay and wait for data
+    final isPdf = pdfPath != null;
+    final label = isPdf
+        ? "Analyzing PDF: ${pdfName ?? 'document'}..."
+        : "Analyzing ${imagePaths.length} page${imagePaths.length > 1 ? 's' : ''}...";
+
     final assessment = await LoadingOverlay.show<AssessmentResult?>(
       context: context,
-      message:
-          "Analyzing ${imagePaths.length} page${imagePaths.length > 1 ? 's' : ''}...\n让我检查这个人类的所作所为，只有我能为所欲为",
-      asyncTask: () => _analyzeImages(context, imagePaths, images),
+      message: label,
+      asyncTask: () =>
+          _analyzeFiles(context, imagePaths, images, pdfPath: pdfPath),
     );
 
-    // 2. Navigate only AFTER overlay is closed
     if (assessment != null && context.mounted) {
       Navigator.push(
         context,
@@ -180,30 +200,30 @@ class CameraScreen extends StatelessWidget {
     }
   }
 
-  Future<AssessmentResult?> _analyzeImages(
+  Future<AssessmentResult?> _analyzeFiles(
     BuildContext context,
-    List<String> imagePaths,
-    List<XFile> images,
-  ) async {
+    List<String> filePaths,
+    List<XFile> images, {
+    String? pdfPath,
+  }) async {
     final service = GeminiService();
-    // Delay slightly to allow UI to build/transition
     await Future.delayed(const Duration(milliseconds: 500));
 
-    // Notice: We don't check context.mounted here as strict because we want the task to finish
-    // and return data even if user backgrounded app, though context is needed for saving?
-    // Actually, saving needs context for nothing specific except maybe error showing?
-    // Let's keep existing logic but return result.
-
     try {
-      final resultMap = await service.analyzeImages(images);
+      final resultMap = await service.analyzeImages(images, pdfPath: pdfPath);
 
       if (resultMap != null) {
         if (context.mounted) {
-          return await _uploadAndSaveResults(context, imagePaths, resultMap);
+          return await _uploadAndSaveResults(
+            context,
+            filePaths,
+            resultMap,
+            isPdf: pdfPath != null,
+          );
         }
       } else {
         if (context.mounted) {
-          _showError(context, "Failed to analyze image. Please try again.");
+          _showError(context, "Failed to analyze. Please try again.");
         }
       }
     } catch (e) {
@@ -218,9 +238,10 @@ class CameraScreen extends StatelessWidget {
 
   Future<AssessmentResult?> _uploadAndSaveResults(
     BuildContext context,
-    List<String> imagePaths,
-    Map<String, dynamic> result,
-  ) async {
+    List<String> filePaths,
+    Map<String, dynamic> result, {
+    bool isPdf = false,
+  }) async {
     try {
       final fbService = FirebaseService();
       List<String> uploadedUrls = [];
@@ -230,20 +251,28 @@ class CameraScreen extends StatelessWidget {
       final String paperId = "paper_${DateTime.now().millisecondsSinceEpoch}";
       final String storageFolder = "users/$studentId/papers/$paperId";
 
-      debugPrint("Uploading images to: $storageFolder");
+      debugPrint("Uploading files to: $storageFolder");
 
-      for (var i = 0; i < imagePaths.length; i++) {
-        final path = imagePaths[i];
-        final String fileName = "$storageFolder/page_${i + 1}.jpg";
-
-        final String? imageUrl = await fbService.uploadImage(path, fileName);
-        if (imageUrl != null) uploadedUrls.add(imageUrl);
+      if (isPdf) {
+        // Upload PDF as-is
+        final String fileName = "$storageFolder/document.pdf";
+        final String? fileUrl = await fbService.uploadImage(
+          filePaths[0],
+          fileName,
+        );
+        if (fileUrl != null) uploadedUrls.add(fileUrl);
+      } else {
+        for (var i = 0; i < filePaths.length; i++) {
+          final path = filePaths[i];
+          final String fileName = "$storageFolder/page_${i + 1}.jpg";
+          final String? imageUrl = await fbService.uploadImage(path, fileName);
+          if (imageUrl != null) uploadedUrls.add(imageUrl);
+        }
       }
 
       if (uploadedUrls.isNotEmpty) {
         debugPrint("Saving assessment for studentId: $studentId");
 
-        // Create AssessmentResult object
         final assessment = AssessmentResult.fromAnalysis(
           studentId: studentId,
           imageUrls: uploadedUrls,
@@ -254,17 +283,13 @@ class CameraScreen extends StatelessWidget {
         final savedAssessment = assessment.copyWith(id: docId);
 
         debugPrint("Assessment saved successfully with ID: $docId");
-        return savedAssessment; // Return the object with the ID
+        return savedAssessment;
       }
     } catch (e) {
       debugPrint("Firebase upload/save failed: $e");
       if (context.mounted) {
         _showError(context, "Failed to save results: $e");
       }
-      // Don't rethrow here if you want to keep the overlay closed but stay on screen?
-      // Actually LoadingOverlay closes on rethrow.
-      // If we return null, overlay closes and we stay here.
-      // If we want to show error inside this function, we do.
       rethrow;
     }
     return null;

@@ -19,7 +19,10 @@ class GeminiService {
     );
   }
 
-  Future<Map<String, dynamic>?> analyzeImages(List<XFile> images) async {
+  Future<Map<String, dynamic>?> analyzeImages(
+    List<XFile> images, {
+    String? pdfPath,
+  }) async {
     try {
       final List<Part> parts = [];
 
@@ -99,13 +102,19 @@ class GeminiService {
         ),
       );
 
-      for (XFile file in images) {
-        final bytes = await file.readAsBytes();
-        parts.add(DataPart('image/jpeg', bytes));
+      // Add either PDF or image data
+      if (pdfPath != null) {
+        final pdfBytes = await File(pdfPath).readAsBytes();
+        parts.add(DataPart('application/pdf', pdfBytes));
+      } else {
+        for (XFile file in images) {
+          final bytes = await file.readAsBytes();
+          parts.add(DataPart('image/jpeg', bytes));
+        }
       }
 
       if (parts.length == 1) {
-        throw "No valid images found to analyze.";
+        throw "No valid files found to analyze.";
       }
 
       final content = [Content.multi(parts)];
