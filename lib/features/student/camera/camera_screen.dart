@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/features/student/analysis/analysis_result_screen.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
 

@@ -2,7 +2,9 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
+import 'package:punca_ai/core/constants/kssm_syllabus.dart';
 import 'package:punca_ai/core/services/firebase_service.dart';
+import 'package:punca_ai/core/models/assessment_model.dart';
 
 class StudentDetailScreen extends StatefulWidget {
   final Map<String, String> student;
@@ -15,7 +17,9 @@ class StudentDetailScreen extends StatefulWidget {
 
 class _StudentDetailScreenState extends State<StudentDetailScreen> {
   late Future<Map<String, double>> _gapAnalysisFuture;
+  List<_WeakTopicInfo> _weakTopics = [];
   bool _isLoadingRemediation = false;
+  bool _loadingTopics = true;
 
   @override
   void initState() {
@@ -23,19 +27,110 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     final studentId = widget.student['id'];
     if (studentId != null && !studentId.startsWith('mock_')) {
       _gapAnalysisFuture = FirebaseService().getGapAnalysis(studentId);
+      _loadWeakTopics(studentId);
     } else {
-      // Mock Data
       _gapAnalysisFuture = Future.value({
         'foundation': 0.15,
         'execution': 0.60,
         'precision': 0.25,
       });
+      _weakTopics = [
+        _WeakTopicInfo('Algebraic Expansion', 'Concept Error', 'F2 Ch3'),
+        _WeakTopicInfo('Factorisation', 'Process Error', 'F2 Ch4'),
+        _WeakTopicInfo('Linear Equations', 'Careless Error', 'F1 Ch6'),
+      ];
+      _loadingTopics = false;
     }
+  }
+
+  Future<void> _loadWeakTopics(String studentId) async {
+    try {
+      final assessments = await FirebaseService().getAssessments(
+        studentId,
+        limit: 20,
+      );
+
+      // Collect all weaknesses and count occurrences
+      final topicMap = <String, _WeakTopicInfo>{};
+
+      for (final a in assessments) {
+        for (final w in a.weaknesses) {
+          final key = w.topic;
+          if (key.isEmpty) continue;
+
+          if (!topicMap.containsKey(key)) {
+            // Resolve syllabus reference with chapter + subtopic
+            String syllabusLabel = '';
+            if (w.syllabusRefs.isNotEmpty) {
+              final ref = w.syllabusRefs.first;
+              final chapterTitle = _getChapterTitle(ref.form, ref.chapterId);
+              final subtopicName = _getSubtopicName(
+                ref.form,
+                ref.chapterId,
+                ref.subtopicId,
+              );
+
+              if (chapterTitle != null) {
+                syllabusLabel =
+                    'F${ref.form} Ch${ref.chapterId}: $chapterTitle';
+                if (subtopicName != null) {
+                  syllabusLabel += ' › $subtopicName';
+                }
+              } else {
+                syllabusLabel = 'F${ref.form} Ch${ref.chapterId}';
+              }
+            }
+
+            final gapLabel = switch (w.gapType) {
+              GapType.foundation => 'Concept Error',
+              GapType.execution => 'Process Error',
+              GapType.precision => 'Careless Error',
+              GapType.general => 'General',
+            };
+
+            topicMap[key] = _WeakTopicInfo(key, gapLabel, syllabusLabel);
+          }
+          topicMap[key]!.count++;
+        }
+      }
+
+      // Sort by frequency, take top 3
+      final sorted = topicMap.values.toList()
+        ..sort((a, b) => b.count.compareTo(a.count));
+
+      if (mounted) {
+        setState(() {
+          _weakTopics = sorted.take(3).toList();
+          _loadingTopics = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading weak topics: $e");
+      if (mounted) setState(() => _loadingTopics = false);
+    }
+  }
+
+  String? _getChapterTitle(int form, int chapterId) {
+    final chapters = KssmSyllabus.structure[form];
+    if (chapters == null) return null;
+    for (final ch in chapters) {
+      if (ch.id == chapterId) return ch.title;
+    }
+    return null;
+  }
+
+  String? _getSubtopicName(int form, int chapterId, int? subtopicId) {
+    if (subtopicId == null) return null;
+    final chapters = KssmSyllabus.structure[form];
+    if (chapters == null) return null;
+    for (final ch in chapters) {
+      if (ch.id == chapterId) return ch.subtopics[subtopicId];
+    }
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    // Check if this is the "Real" student
     final isRealStudent = !widget.student['id']!.startsWith('mock_');
 
     return Scaffold(
@@ -162,14 +257,12 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               ),
               child: Row(
                 children: [
-                  // Simple Custom Pie Chart
                   SizedBox(
                     height: 120,
                     width: 120,
                     child: CustomPaint(painter: _SimplePieChartPainter(data)),
                   ),
                   const SizedBox(width: 24),
-                  // Legend
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,18 +291,128 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            // Top Weakness Areas
+            // Weak Topics
             const Text(
-              "Top 3 Weak Topics",
+              "Top Weak Topics",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            _buildWeakTopicItem("1. Algebraic Expansion", "Concept Error"),
-            _buildWeakTopicItem("2. Factorisation", "Process Error"),
-            _buildWeakTopicItem("3. Linear Equations", "Careless Error"),
+            _buildWeakTopicsList(),
           ],
         );
       },
+    );
+  }
+
+  Widget _buildWeakTopicsList() {
+    if (_loadingTopics) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_weakTopics.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          "No weakness data available",
+          style: TextStyle(color: Colors.grey[500]),
+        ),
+      );
+    }
+
+    return Column(
+      children: _weakTopics.asMap().entries.map((entry) {
+        final idx = entry.key + 1;
+        final info = entry.value;
+        return _buildWeakTopicCard(idx, info);
+      }).toList(),
+    );
+  }
+
+  Widget _buildWeakTopicCard(int rank, _WeakTopicInfo info) {
+    final errorColor = switch (info.errorType) {
+      'Concept Error' => Colors.red,
+      'Process Error' => Colors.orange,
+      'Careless Error' => Colors.blue,
+      _ => Colors.grey,
+    };
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Rank badge
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: errorColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Center(
+              child: Text(
+                "$rank",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: errorColor,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  info.topic,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (info.syllabusRef.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    info.syllabusRef,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: errorColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              info.errorType,
+              style: TextStyle(
+                color: errorColor,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -227,26 +430,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
         ),
       ],
-    );
-  }
-
-  Widget _buildWeakTopicItem(String topic, String reason) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(topic, style: TextStyle(color: Colors.grey[800], fontSize: 15)),
-          Text(
-            reason,
-            style: const TextStyle(
-              color: Colors.red,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -310,6 +493,17 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   }
 }
 
+// ── Data Class ──
+class _WeakTopicInfo {
+  final String topic;
+  final String errorType;
+  final String syllabusRef;
+  int count;
+
+  _WeakTopicInfo(this.topic, this.errorType, this.syllabusRef) : count = 0;
+}
+
+// ── Pie Chart Painter ──
 class _SimplePieChartPainter extends CustomPainter {
   final Map<String, double> data;
 
@@ -322,7 +516,6 @@ class _SimplePieChartPainter extends CustomPainter {
 
     double startAngle = -pi / 2;
 
-    // Colors mapping
     final colors = {
       'foundation': Colors.red,
       'execution': Colors.orange,
@@ -345,7 +538,6 @@ class _SimplePieChartPainter extends CustomPainter {
       startAngle += sweepAngle;
     });
 
-    // Draw hole for Donut effect (optional, looks nicer)
     final holePaint = Paint()..color = Colors.white;
     canvas.drawCircle(center, radius * 0.5, holePaint);
   }
