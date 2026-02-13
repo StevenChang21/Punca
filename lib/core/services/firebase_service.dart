@@ -313,4 +313,51 @@ class FirebaseService {
     }
     return null;
   }
+
+  /// Aggregates gap analysis for a specific student (Real Data for Teacher Insights)
+  Future<Map<String, double>> getGapAnalysis(String studentId) async {
+    try {
+      final snapshot = await _weaknesses
+          .where('studentId', isEqualTo: studentId)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        // Return default distribution if no data
+        return {'foundation': 0.33, 'execution': 0.33, 'precision': 0.34};
+      }
+
+      int foundation = 0;
+      int execution = 0;
+      int precision = 0;
+      int total = 0;
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final gapType = data['gap_type']?.toString().toLowerCase() ?? 'general';
+
+        if (gapType == 'foundation')
+          foundation++;
+        else if (gapType == 'execution')
+          execution++;
+        else if (gapType == 'precision')
+          precision++;
+        else
+          execution++; // Default general to execution for now
+
+        total++;
+      }
+
+      if (total == 0)
+        return {'foundation': 0.33, 'execution': 0.33, 'precision': 0.34};
+
+      return {
+        'foundation': foundation / total,
+        'execution': execution / total,
+        'precision': precision / total,
+      };
+    } catch (e) {
+      debugPrint("Error getting gap analysis: $e");
+      return {'foundation': 0.33, 'execution': 0.33, 'precision': 0.34};
+    }
+  }
 }

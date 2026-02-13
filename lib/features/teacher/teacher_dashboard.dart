@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
+import 'package:punca_ai/core/services/auth_service.dart';
+import 'package:punca_ai/features/teacher/widgets/class_heatmap.dart';
 import 'package:punca_ai/features/teacher/student_detail_screen.dart';
 
 class TeacherDashboard extends StatelessWidget {
@@ -15,6 +17,8 @@ class TeacherDashboard extends StatelessWidget {
           _buildHeader(),
           const SizedBox(height: 24),
           _buildQuickStats(),
+          const SizedBox(height: 24),
+          const ClassHeatmap(), // Added Heatmap
           const SizedBox(height: 24),
           _buildSectionHeader("Students at Risk"),
           const SizedBox(height: 16),
@@ -141,16 +145,25 @@ class TeacherDashboard extends StatelessWidget {
   }
 
   Widget _buildStudentList(BuildContext context) {
-    // Current User (You) is failing Linear Equations
+    // Current User (You)
+    final user = AuthService().currentUser;
     final students = [
       {
-        "name": "Alex Johnson",
+        "name": user?.displayName ?? user?.email ?? "You (Student)",
+        "id": user?.uid ?? "", // Pass real ID
         "issue": "Failed Linear Equations I",
         "score": "42%",
       },
-      {"name": "Sarah Lee", "issue": "Missed 3 assignments", "score": "55%"},
+      // ... Mock others for context
+      {
+        "name": "Sarah Lee",
+        "id": "mock_1",
+        "issue": "Missed 3 assignments",
+        "score": "55%",
+      },
       {
         "name": "Michael Chen",
+        "id": "mock_2",
         "issue": "Needs remediation logic",
         "score": "61%",
       },

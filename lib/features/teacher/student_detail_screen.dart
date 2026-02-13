@@ -1,20 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
+import 'package:punca_ai/features/teacher/widgets/gap_analysis_chart.dart';
 
-class StudentDetailScreen extends StatelessWidget {
+import 'package:punca_ai/core/services/firebase_service.dart';
+
+class StudentDetailScreen extends StatefulWidget {
   final Map<String, String> student;
 
   const StudentDetailScreen({super.key, required this.student});
 
   @override
+  State<StudentDetailScreen> createState() => _StudentDetailScreenState();
+}
+
+class _StudentDetailScreenState extends State<StudentDetailScreen> {
+  late Future<Map<String, double>> _gapAnalysisFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    final studentId = widget.student['id'];
+    if (studentId != null && !studentId.startsWith('mock_')) {
+      _gapAnalysisFuture = FirebaseService().getGapAnalysis(studentId);
+    } else {
+      // Mock Data
+      _gapAnalysisFuture = Future.value({
+        'foundation': 0.15,
+        'execution': 0.60,
+        'precision': 0.25,
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Mock Data for "Alex Johnson" failing Linear Equations
-    // In a real app, this would be fetched based on student ID
-    final isDemoStudent = student['name'] == "Alex Johnson";
+    // Check if this is the "Real" student (Alex Johnson / You)
+    final isRealStudent = !widget.student['id']!.startsWith('mock_');
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(student['name']!),
+        title: Text(widget.student['name']!),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
@@ -24,9 +49,9 @@ class StudentDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStudentHeader(isDemoStudent),
+            _buildStudentHeader(isRealStudent),
             const SizedBox(height: 24),
-            _buildWeaknessAnalysis(isDemoStudent),
+            _buildWeaknessAnalysis(isRealStudent),
             const SizedBox(height: 24),
             _buildActionableSteps(context),
           ],
@@ -35,7 +60,7 @@ class StudentDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStudentHeader(bool isDemoStudent) {
+  Widget _buildStudentHeader(bool isRealStudent) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -53,64 +78,93 @@ class StudentDetailScreen extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 30,
-            backgroundColor: isDemoStudent ? Colors.red[100] : Colors.blue[100],
+            backgroundColor: isRealStudent ? Colors.red[100] : Colors.blue[100],
             child: Text(
-              isDemoStudent ? "42%" : "B",
+              widget.student['score']!.replaceAll('%', ''),
               style: TextStyle(
-                color: isDemoStudent ? Colors.red : Colors.blue,
+                color: isRealStudent ? Colors.red : Colors.blue,
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
               ),
             ),
           ),
           const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                student['name']!,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.student['name']!,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
-              ),
-              Text(
-                student['issue']!,
-                style: TextStyle(
-                  color: isDemoStudent ? Colors.red : Colors.grey[600],
-                  fontWeight: FontWeight.w500,
+                Text(
+                  widget.student['issue']!,
+                  style: TextStyle(
+                    color: isRealStudent ? Colors.red : Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildWeaknessAnalysis(bool isDemoStudent) {
-    if (!isDemoStudent) {
-      return const Center(
-        child: Text("Detailed analysis not available for mock student."),
-      );
-    }
+  Widget _buildWeaknessAnalysis(bool isRealStudent) {
+    return FutureBuilder<Map<String, double>>(
+      future: _gapAnalysisFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Weakness Breakdown: Linear Equations I",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 16),
-        _buildSkillBar("Balancing Equations", 0.20, Colors.red),
-        _buildSkillBar("Isolating Variables", 0.45, Colors.orange),
-        _buildSkillBar("Basic Arithmetic", 0.85, Colors.green),
-      ],
+        final data =
+            snapshot.data ??
+            {'foundation': 0.33, 'execution': 0.33, 'precision': 0.34};
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isRealStudent
+                  ? "Your Gap Analysis (Real Data)"
+                  : "Weakness Breakdown (Mock)",
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Real Gap Analysis Chart
+            GapAnalysisChart(
+              foundationPct: data['foundation']!,
+              executionPct: data['execution']!,
+              precisionPct: data['precision']!,
+            ),
+            const SizedBox(height: 24),
+            // Existing Skill Bars (Static for now, could be dynamic later)
+            if (isRealStudent) ...[
+              const Text(
+                "Top Weakness Areas:",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+            ],
+            _buildSkillBar("Algebraic Expansion", 0.40, Colors.red),
+            _buildSkillBar("Factorisation", 0.55, Colors.orange),
+          ],
+        );
+      },
     );
   }
 
@@ -165,7 +219,7 @@ class StudentDetailScreen extends StatelessWidget {
               );
             },
             icon: const Icon(Icons.assignment),
-            label: const Text("Assign 'Linear Equations I' Basics Pack"),
+            label: const Text("Assign Remediation Pack"),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
