@@ -414,6 +414,11 @@ class FirebaseService {
     return docRef.id;
   }
 
+  /// Delete a classroom (used for test cleanup).
+  Future<void> deleteClassroom(String classroomId) async {
+    await _firestore.collection('classrooms').doc(classroomId).delete();
+  }
+
   /// Get all classrooms for a teacher.
   Future<List<Map<String, dynamic>>> getTeacherClassrooms(
     String teacherId,
