@@ -17,7 +17,8 @@ class AuthService {
     required String email,
     required String password,
     required String name,
-    required String role, // 'Student' or 'Parent'
+    required String role, // 'Student' or 'Teacher'
+    String? form, // e.g. 'Form 1'
   }) async {
     try {
       debugPrint("Starting Sign Up for $email");
@@ -36,6 +37,7 @@ class AuthService {
           'email': email,
           'displayName': name,
           'role': role,
+          if (form != null) 'form': form,
           'createdAt': FieldValue.serverTimestamp(),
           'linkedAccounts': [],
         });
@@ -49,6 +51,34 @@ class AuthService {
     } catch (e) {
       debugPrint("UNKNOWN ERROR: $e");
       return e.toString();
+    }
+  }
+
+  // Get User Role
+  Future<String?> getUserRole(String uid) async {
+    try {
+      final doc = await _firestore.collection('users').doc(uid).get();
+      if (doc.exists) {
+        return doc.data()?['role'] as String?;
+      }
+      return null;
+    } catch (e) {
+      debugPrint("Error fetching role: $e");
+      return null;
+    }
+  }
+
+  // Get User Name
+  Future<String?> getUserName(String uid) async {
+    try {
+      final doc = await _firestore.collection('users').doc(uid).get();
+      if (doc.exists) {
+        return doc.data()?['displayName'] as String?;
+      }
+      return null;
+    } catch (e) {
+      debugPrint("Error fetching name: $e");
+      return null;
     }
   }
 
