@@ -393,4 +393,84 @@ class FirebaseService {
       return 0;
     }
   }
+
+  // ── Classroom Methods ──
+
+  /// Join a classroom by ID and code. Returns null on success, error string on failure.
+  Future<String?> joinClassroom(
+    String studentId,
+    String classroomId,
+    String code,
+  ) async {
+    try {
+      final doc = await _firestore
+          .collection('classrooms')
+          .doc(classroomId)
+          .get();
+      if (!doc.exists) return "Classroom not found.";
+
+      final data = doc.data() as Map<String, dynamic>;
+      final storedCode = data['code']?.toString() ?? '';
+      if (storedCode != code) return "Invalid classroom code.";
+
+      // Check if already enrolled
+      final studentIds = List<String>.from(data['studentIds'] ?? []);
+      if (studentIds.contains(studentId))
+        return "You are already in this class.";
+
+      // Add student to classroom
+      await _firestore.collection('classrooms').doc(classroomId).update({
+        'studentIds': FieldValue.arrayUnion([studentId]),
+      });
+
+      // Save classroomId to user doc
+      await _firestore.collection('users').doc(studentId).update({
+        'classroomId': classroomId,
+      });
+
+      return null; // Success
+    } catch (e) {
+      debugPrint("Error joining classroom: $e");
+      return "Failed to join classroom: $e";
+    }
+  }
+
+  /// Get the classroom data for a student, or null if not enrolled.
+  Future<Map<String, dynamic>?> getStudentClassroom(String studentId) async {
+    try {
+      final userDoc = await _firestore.collection('users').doc(studentId).get();
+      if (!userDoc.exists) return null;
+
+      final classroomId = userDoc.data()?['classroomId'] as String?;
+      if (classroomId == null || classroomId.isEmpty) return null;
+
+      final classDoc = await _firestore
+          .collection('classrooms')
+          .doc(classroomId)
+          .get();
+      if (!classDoc.exists) return null;
+
+      final data = classDoc.data() as Map<String, dynamic>;
+      data['id'] = classDoc.id;
+      return data;
+    } catch (e) {
+      debugPrint("Error getting student classroom: $e");
+      return null;
+    }
+  }
+
+  /// Leave a classroom.
+  Future<void> leaveClassroom(String studentId, String classroomId) async {
+    try {
+      await _firestore.collection('classrooms').doc(classroomId).update({
+        'studentIds': FieldValue.arrayRemove([studentId]),
+      });
+      await _firestore.collection('users').doc(studentId).update({
+        'classroomId': FieldValue.delete(),
+      });
+    } catch (e) {
+      debugPrint("Error leaving classroom: $e");
+      rethrow;
+    }
+  }
 }
