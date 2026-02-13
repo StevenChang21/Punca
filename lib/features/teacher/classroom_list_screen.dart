@@ -5,45 +5,37 @@ import 'package:punca_ai/core/services/auth_service.dart';
 import 'package:punca_ai/core/services/firebase_service.dart';
 import 'package:punca_ai/features/teacher/classroom_detail_screen.dart';
 
-class ClassroomListScreen extends StatelessWidget {
+class ClassroomListScreen extends StatefulWidget {
   const ClassroomListScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Mock Classrooms
-    final classrooms = [
-      {
-        "id": "MATH-F2-A",
-        "name": "Form 2 Mathematics",
-        "code": "MTH-2024",
-        "form": "Form 2",
-        "standard": "KSSM",
-        "studentCount": 24,
-        "average": 72,
-        "color": Colors.blue,
-      },
-      {
-        "id": "SCI-F1-B",
-        "name": "Form 1 Science",
-        "code": "SCI-1011",
-        "form": "Form 1",
-        "standard": "KSSM",
-        "studentCount": 30,
-        "average": 65,
-        "color": Colors.green,
-      },
-      {
-        "id": "ADD-F4-C",
-        "name": "Form 4 Add Math",
-        "code": "ADD-4044",
-        "form": "Form 4",
-        "standard": "KSSM",
-        "studentCount": 18,
-        "average": 58, // Low avg
-        "color": Colors.orange,
-      },
-    ];
+  State<ClassroomListScreen> createState() => _ClassroomListScreenState();
+}
 
+class _ClassroomListScreenState extends State<ClassroomListScreen> {
+  late Future<List<Map<String, dynamic>>> _classroomsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadClassrooms();
+  }
+
+  void _loadClassrooms() {
+    final uid = AuthService().currentUser?.uid;
+    if (uid != null) {
+      setState(() {
+        _classroomsFuture = FirebaseService().getTeacherClassrooms(uid);
+      });
+    } else {
+      setState(() {
+        _classroomsFuture = Future.value([]);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: CustomScrollView(
@@ -71,23 +63,69 @@ class ClassroomListScreen extends StatelessWidget {
               ),
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final classroom = classrooms[index];
-                return _buildClassroomCard(context, classroom);
-              }, childCount: classrooms.length),
-            ),
+          // Dynamic classroom list
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _classroomsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SliverToBoxAdapter(
+                  child: Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40),
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                );
+              }
+
+              final classrooms = snapshot.data ?? [];
+
+              if (classrooms.isEmpty) {
+                return SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.class_, size: 64, color: Colors.grey[300]),
+                          const SizedBox(height: 16),
+                          Text(
+                            "No classrooms yet",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Tap the button below to create your first class!",
+                            style: TextStyle(color: Colors.grey[400]),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              return SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final classroom = classrooms[index];
+                    return _buildClassroomCard(context, classroom);
+                  }, childCount: classrooms.length),
+                ),
+              );
+            },
           ),
-          // Floating Action Button Placeholder (in Sliver)
+          // Create New Class button
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: ElevatedButton.icon(
-                onPressed: () {
-                  _showCreateClassDialog(context);
-                },
+                onPressed: () => _showCreateClassDialog(context),
                 icon: const Icon(Icons.add),
                 label: const Text("Create New Class"),
                 style: ElevatedButton.styleFrom(
@@ -110,6 +148,8 @@ class ClassroomListScreen extends StatelessWidget {
     BuildContext context,
     Map<String, dynamic> classroom,
   ) {
+    final studentCount = classroom['studentCount'] ?? 0;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -127,14 +167,15 @@ class ClassroomListScreen extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            Navigator.push(
+          onTap: () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (context) =>
                     ClassroomDetailScreen(classroom: classroom),
               ),
             );
+            _loadClassrooms(); // Refresh on return
           },
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -150,15 +191,13 @@ class ClassroomListScreen extends StatelessWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: (classroom['color'] as Color).withValues(
-                          alpha: 0.1,
-                        ),
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        classroom['form'],
-                        style: TextStyle(
-                          color: classroom['color'],
+                        classroom['code'] ?? '',
+                        style: const TextStyle(
+                          color: AppColors.primary,
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -169,7 +208,7 @@ class ClassroomListScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  classroom['name'],
+                  classroom['name'] ?? 'Untitled',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -178,50 +217,14 @@ class ClassroomListScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "${classroom['standard']} • ${classroom['studentCount']} Students",
+                  "$studentCount ${studentCount == 1 ? 'Student' : 'Students'}",
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    _buildMiniStat(
-                      Icons.bar_chart,
-                      "${classroom['average']}% Avg",
-                    ),
-                    const SizedBox(width: 16),
-                    _buildMiniStat(
-                      Icons.warning_amber_rounded,
-                      "3 At Risk",
-                      isWarning: true,
-                    ),
-                  ],
                 ),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildMiniStat(IconData icon, String label, {bool isWarning = false}) {
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 16,
-          color: isWarning ? Colors.orange : Colors.grey[600],
-        ),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: isWarning ? Colors.orange : Colors.grey[700],
-          ),
-        ),
-      ],
     );
   }
 
@@ -297,6 +300,10 @@ class ClassroomListScreen extends StatelessWidget {
               if (!context.mounted) return;
               Navigator.pop(ctx);
 
+              // Refresh the list
+              _loadClassrooms();
+
+              // Show success dialog
               showDialog(
                 context: context,
                 builder: (ctx2) => AlertDialog(

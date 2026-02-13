@@ -414,6 +414,28 @@ class FirebaseService {
     return docRef.id;
   }
 
+  /// Get all classrooms for a teacher.
+  Future<List<Map<String, dynamic>>> getTeacherClassrooms(
+    String teacherId,
+  ) async {
+    try {
+      final snapshot = await _firestore
+          .collection('classrooms')
+          .where('teacherId', isEqualTo: teacherId)
+          .orderBy('createdAt', descending: true)
+          .get();
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        data['studentCount'] = (data['studentIds'] as List?)?.length ?? 0;
+        return data;
+      }).toList();
+    } catch (e) {
+      debugPrint("Error getting teacher classrooms: $e");
+      return [];
+    }
+  }
+
   /// Join a classroom by ID and code. Returns null on success, error string on failure.
   Future<String?> joinClassroom(
     String studentId,
