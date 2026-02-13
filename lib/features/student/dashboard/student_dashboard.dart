@@ -224,21 +224,96 @@ class _StudentDashboardState extends State<StudentDashboard> {
             style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
           const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: () async {
-              // We can either push the screen or switch tabs.
-              // For a "Scanner", pushing a fullscreen modal often feels better.
-              await Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const CameraScreen()));
-              _loadData(); // Refresh on return
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accent,
-              foregroundColor: AppColors.primaryDark,
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    // We can either push the screen or switch tabs.
+                    // For a "Scanner", pushing a fullscreen modal often feels better.
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CameraScreen()),
+                    );
+                    _loadData(); // Refresh on return
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: AppColors.primaryDark,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text("Snap Question"),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    _showJoinClassDialog(context);
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  icon: const Icon(Icons.class_),
+                  label: const Text("Join Class"),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showJoinClassDialog(BuildContext context) {
+    final classroomIdController = TextEditingController();
+    final classroomCodeController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Join Classroom"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: classroomIdController,
+              decoration: const InputDecoration(
+                labelText: "Classroom ID",
+                hintText: "Enter the Classroom ID",
+              ),
             ),
-            icon: const Icon(Icons.camera_alt),
-            label: const Text("Snap Question"),
+            const SizedBox(height: 16),
+            TextField(
+              controller: classroomCodeController,
+              decoration: const InputDecoration(
+                labelText: "Classroom Code",
+                hintText: "Enter the Access Code",
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // TODO: Implement actual join logic
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    "Joining Class ID: ${classroomIdController.text} with Code: ${classroomCodeController.text}",
+                  ),
+                ),
+              );
+            },
+            child: const Text("Join"),
           ),
         ],
       ),
