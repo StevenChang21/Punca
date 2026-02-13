@@ -56,7 +56,7 @@ class _ClassroomDetailScreenState extends State<ClassroomDetailScreen> {
 
         // Count weaknesses
         for (final w in a.weaknesses) {
-          final topic = w['topic'] ?? w['weakness'] ?? '';
+          final topic = w.topic;
           if (topic.isNotEmpty) {
             weaknessCounts[topic] = (weaknessCounts[topic] ?? 0) + 1;
           }
