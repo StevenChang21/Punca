@@ -13,23 +13,48 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  String _selectedRole = 'Student';
   bool _isLoading = false;
 
   Future<void> _login() async {
     setState(() => _isLoading = true);
-    final error = await AuthService().signIn(
+    final authService = AuthService();
+    final error = await authService.signIn(
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
     );
+
     if (!mounted) return;
-    setState(() => _isLoading = false);
 
     if (error != null) {
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error)));
+    } else {
+      // Check Role
+      final user = authService.currentUser;
+      if (user != null) {
+        final role = await authService.getUserRole(user.uid);
+        if (role != _selectedRole) {
+          // Role mismatch
+          await authService.signOut();
+          if (!mounted) return;
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                "Role mismatch! This account is registered as a $role.",
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
+      // Success handled by AuthWrapper
+      if (mounted) setState(() => _isLoading = false);
     }
-    // Success is handled by AuthWrapper stream
   }
 
   @override
@@ -76,6 +101,30 @@ class _LoginScreenState extends State<LoginScreen> {
               style: const TextStyle(color: Colors.white),
               obscureText: true,
             ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              value: _selectedRole,
+              dropdownColor: Colors.grey[900],
+              items: ['Student', 'Teacher']
+                  .map(
+                    (role) => DropdownMenuItem(
+                      value: role,
+                      child: Text(
+                        role,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (val) => setState(() => _selectedRole = val!),
+              decoration: const InputDecoration(
+                labelText: "I am a...",
+                labelStyle: TextStyle(color: Colors.white70),
+                filled: true,
+                fillColor: Colors.white10,
+                border: OutlineInputBorder(),
+              ),
+            ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _isLoading ? null : _login,
@@ -95,7 +144,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   MaterialPageRoute(builder: (_) => const SignUpScreen()),
                 );
               },
-              child: const Text("Don't have an account? Sign Up"),
+              child: const Text(
+                "Don't have an account? Sign Up",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),

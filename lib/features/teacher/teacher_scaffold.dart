@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/features/teacher/classroom_list_screen.dart';
 import 'package:punca_ai/features/teacher/teacher_dashboard.dart';
+import 'package:punca_ai/core/services/auth_service.dart';
 
 class TeacherScaffold extends StatefulWidget {
   const TeacherScaffold({super.key});
@@ -94,18 +95,35 @@ class TeacherProfileTab extends StatelessWidget {
             style: TextStyle(color: Colors.grey),
           ),
           const SizedBox(height: 32),
+          if (Navigator.canPop(context))
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey[800],
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
+              ),
+              icon: const Icon(Icons.school),
+              label: const Text("Switch to Student View"),
+            ),
+          const SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: () {
-              // Switch back to Student Mode logic
-              // Since we pushed TeacherScaffold, we can just pop it to return to MainScaffold
-              Navigator.pop(context);
+            onPressed: () async {
+              await AuthService().signOut();
+              if (context.mounted) {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.grey[800],
+              backgroundColor: Colors.redAccent,
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
             ),
-            icon: const Icon(Icons.school),
-            label: const Text("Switch to Student View"),
+            icon: const Icon(Icons.logout),
+            label: const Text("Sign Out"),
           ),
         ],
       ),

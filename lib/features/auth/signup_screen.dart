@@ -14,6 +14,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   String _selectedRole = 'Student';
+  String? _selectedForm = 'Form 4'; // Default
   bool _isLoading = false;
 
   Future<void> _signUp() async {
@@ -23,6 +24,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       password: _passwordController.text.trim(),
       name: _nameController.text.trim(),
       role: _selectedRole,
+      form: _selectedRole == 'Student' ? _selectedForm : null,
     );
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -91,7 +93,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             DropdownButtonFormField<String>(
               initialValue: _selectedRole,
               dropdownColor: Colors.grey[900],
-              items: ['Student', 'Parent', 'Educator']
+              items: ['Student', 'Teacher']
                   .map(
                     (role) => DropdownMenuItem(
                       value: role,
@@ -111,6 +113,32 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 border: OutlineInputBorder(),
               ),
             ),
+            if (_selectedRole == 'Student') ...[
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedForm,
+                dropdownColor: Colors.grey[900],
+                items: ['Form 1', 'Form 2', 'Form 3', 'Form 4', 'Form 5']
+                    .map(
+                      (form) => DropdownMenuItem(
+                        value: form,
+                        child: Text(
+                          form,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (val) => setState(() => _selectedForm = val),
+                decoration: const InputDecoration(
+                  labelText: "Form / Grade",
+                  labelStyle: TextStyle(color: Colors.white70),
+                  filled: true,
+                  fillColor: Colors.white10,
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _isLoading ? null : _signUp,

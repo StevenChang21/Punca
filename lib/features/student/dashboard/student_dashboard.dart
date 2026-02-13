@@ -17,11 +17,23 @@ class StudentDashboard extends StatefulWidget {
 
 class _StudentDashboardState extends State<StudentDashboard> {
   late Future<List<AssessmentResult>> _assessmentsFuture;
+  String _studentName = "Student";
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    final uid = AuthService().currentUser?.uid;
+    if (uid != null) {
+      final name = await AuthService().getUserName(uid);
+      if (name != null && mounted) {
+        setState(() => _studentName = name.split(' ').first);
+      }
+    }
   }
 
   void _loadData() {
@@ -40,14 +52,14 @@ class _StudentDashboardState extends State<StudentDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Hello, Student 👋", //TODO: Display student's name
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              "Hello, $_studentName 👋",
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
-            Text(
+            const Text(
               "Ready to learn something new?",
               style: TextStyle(
                 fontSize: 14,
