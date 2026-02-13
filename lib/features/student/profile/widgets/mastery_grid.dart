@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 
 class MasteryGrid extends StatelessWidget {
-  final Map<String, double> masteryData;
+  final Map<String, double?> masteryData;
 
   const MasteryGrid({super.key, required this.masteryData});
 
@@ -21,36 +21,53 @@ class MasteryGrid extends StatelessWidget {
       );
     }
 
-    // Sort by mastery (lowest first? or alphabetical? plan didn't specify, let's do Alphabetical for grid)
     final sortedKeys = masteryData.keys.toList()..sort();
 
     return SliverPadding(
       padding: const EdgeInsets.all(16),
       sliver: SliverGrid(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2, // 2 columns
+          crossAxisCount: 2,
           mainAxisSpacing: 16,
           crossAxisSpacing: 16,
-          childAspectRatio: 1.5, // rectangular cards
+          childAspectRatio: 1.5,
         ),
         delegate: SliverChildBuilderDelegate((context, index) {
           final topic = sortedKeys[index];
-          final mastery = masteryData[topic]!;
+          final mastery = masteryData[topic];
           return _buildMasteryCard(topic, mastery);
         }, childCount: sortedKeys.length),
       ),
     );
   }
 
-  Widget _buildMasteryCard(String topic, double mastery) {
+  Widget _buildMasteryCard(String topic, double? mastery) {
     // Determine color based on mastery
-    Color batteryColor;
-    if (mastery >= 0.8) {
-      batteryColor = Colors.greenAccent[700]!;
+    Color statusColor;
+    String statusText;
+    double progressValue;
+    IconData statusIcon;
+
+    if (mastery == null) {
+      statusColor = Colors.grey;
+      statusText = "NA";
+      progressValue = 0.0;
+      statusIcon = Icons.circle_outlined;
+    } else if (mastery >= 0.8) {
+      statusColor = Colors.greenAccent[700]!;
+      statusText = "${(mastery * 100).toInt()}%";
+      progressValue = mastery;
+      statusIcon = Icons.battery_charging_full;
     } else if (mastery >= 0.5) {
-      batteryColor = Colors.orangeAccent;
+      statusColor = Colors.orangeAccent;
+      statusText = "${(mastery * 100).toInt()}%";
+      progressValue = mastery;
+      statusIcon = Icons.battery_alert;
     } else {
-      batteryColor = Colors.redAccent;
+      statusColor = Colors.redAccent;
+      statusText = "${(mastery * 100).toInt()}%";
+      progressValue = mastery;
+      statusIcon = Icons.battery_0_bar;
     }
 
     return Container(
@@ -60,7 +77,7 @@ class MasteryGrid extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -72,10 +89,10 @@ class MasteryGrid extends StatelessWidget {
         children: [
           Text(
             topic,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: AppColors.textPrimary,
+              fontSize: 14, // Slightly smaller to fit long names
+              color: mastery == null ? Colors.grey : AppColors.textPrimary,
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -86,16 +103,12 @@ class MasteryGrid extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Icon(
-                    Icons.battery_charging_full,
-                    size: 16,
-                    color: Colors.grey,
-                  ),
+                  Icon(statusIcon, size: 16, color: statusColor),
                   Text(
-                    "${(mastery * 100).toInt()}%",
+                    statusText,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: batteryColor,
+                      color: statusColor,
                     ),
                   ),
                 ],
@@ -104,10 +117,10 @@ class MasteryGrid extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
-                  value: mastery,
-                  backgroundColor: Colors.grey[200],
-                  color: batteryColor,
-                  minHeight: 8,
+                  value: progressValue,
+                  backgroundColor: Colors.grey[100],
+                  color: statusColor,
+                  minHeight: 6,
                 ),
               ),
             ],

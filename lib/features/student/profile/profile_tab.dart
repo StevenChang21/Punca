@@ -4,6 +4,7 @@ import 'package:punca_ai/core/services/auth_service.dart';
 import 'package:punca_ai/features/student/profile/widgets/focus_area_card.dart';
 import 'package:punca_ai/features/student/profile/widgets/mastery_grid.dart';
 import 'package:punca_ai/features/teacher/teacher_scaffold.dart';
+import 'package:punca_ai/core/services/firebase_service.dart'; // Added
 import 'package:punca_ai/core/constants/kssm_syllabus.dart';
 import 'dart:math';
 
@@ -22,13 +23,47 @@ class _ProfileTabState extends State<ProfileTab> {
     "English",
     "History",
   ];
-  Map<String, double> _masteryData = {};
+  Map<String, double?> _masteryData = {}; // Nullable for NA support
   bool _isLoading = false;
+  bool _isDemoMode = true; // Default to Demo Mode
 
   @override
   void initState() {
     super.initState();
-    _loadMockData();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    if (_isDemoMode) {
+      await _loadMockData();
+    } else {
+      await _loadLiveData();
+    }
+  }
+
+  Future<void> _loadLiveData() async {
+    final user = AuthService().currentUser;
+    if (user == null) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Use FirebaseService to get REAL stats (which now supports ID-based robust matching)
+      final data = await FirebaseService().getMasteryStats(
+        user.uid,
+        subject: _selectedSubject,
+      );
+
+      if (mounted) {
+        setState(() {
+          _masteryData = data;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading live data: $e");
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _loadMockData() async {
@@ -39,7 +74,7 @@ class _ProfileTabState extends State<ProfileTab> {
     // Simulate network delay
     await Future.delayed(const Duration(milliseconds: 500));
 
-    Map<String, double> data = {};
+    Map<String, double?> data = {};
 
     if (_selectedSubject == "Math") {
       // Mock Math Data from Syllabus (Form 1 & 2)
@@ -50,14 +85,14 @@ class _ProfileTabState extends State<ProfileTab> {
             final key =
                 "F$form C${chap.id.toString().padLeft(2, '0')}: ${chap.title}";
             // Random mastery between 0% and 100%, biased towards 30-80%
-            double mastery = 0.0;
+            double? mastery;
             // Simulate that first few chapters are done
             if (form == 1 && chap.id <= 5) {
               mastery = 0.5 + (random.nextDouble() * 0.4); // 50-90%
             } else if (form == 1) {
               mastery = 0.2 + (random.nextDouble() * 0.4); // 20-60%
             } else {
-              mastery = 0.0; // Not started
+              mastery = null; // Not started (NA)
             }
             data[key] = mastery;
           }
@@ -68,7 +103,7 @@ class _ProfileTabState extends State<ProfileTab> {
       data = {
         "Chapter 1: Basics": 0.85,
         "Chapter 2: Intermediate": 0.60,
-        "Chapter 3: Advanced": 0.30,
+        "Chapter 3: Advanced": null, // NA example
       };
     }
 
@@ -85,36 +120,65 @@ class _ProfileTabState extends State<ProfileTab> {
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
       slivers: [
-        // Header
+        // Header with Toggle
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 60, 20, 10),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.grey[300],
-                  child: const Icon(
-                    Icons.person,
-                    size: 35,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
                   children: [
-                    const Text(
-                      "Student Profile",
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.grey[300],
+                      child: const Icon(
+                        Icons.person,
+                        size: 35,
+                        color: Colors.white,
                       ),
                     ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Student Profile",
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        Text(
+                          AuthService().currentUser?.email ??
+                              "student@example.com",
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                // Demo Toggle
+                Column(
+                  children: [
+                    Switch(
+                      value: _isDemoMode,
+                      activeColor: AppColors.primary,
+                      onChanged: (val) {
+                        setState(() => _isDemoMode = val);
+                        _loadData();
+                      },
+                    ),
                     Text(
-                      AuthService().currentUser?.email ?? "student@example.com",
-                      style: const TextStyle(color: AppColors.textSecondary),
+                      _isDemoMode ? "DEMO" : "LIVE",
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: _isDemoMode ? AppColors.primary : Colors.grey,
+                      ),
                     ),
                   ],
                 ),
@@ -152,7 +216,7 @@ class _ProfileTabState extends State<ProfileTab> {
                     setState(() {
                       _selectedSubject = newValue;
                     });
-                    _loadMockData(); // Reload mock data on change
+                    _loadData(); // Reload data on change
                   },
                 ),
               ),
@@ -160,7 +224,7 @@ class _ProfileTabState extends State<ProfileTab> {
           ),
         ),
 
-        // Focus Area
+        // Focus Area (Hide if loading or empty)
         if (!_isLoading && _masteryData.isNotEmpty)
           SliverToBoxAdapter(
             child: Padding(
@@ -175,8 +239,16 @@ class _ProfileTabState extends State<ProfileTab> {
               ),
             ),
           ),
+
+        // Pass only NON-NULL data for Focus Area Calculation
         if (!_isLoading && _masteryData.isNotEmpty)
-          FocusAreaCard(masteryData: _masteryData)
+          // We filter out nulls for the Focus Card to avoid errors
+          FocusAreaCard(
+            masteryData: {
+              for (var k in _masteryData.keys)
+                if (_masteryData[k] != null) k: _masteryData[k]!,
+            },
+          )
         else if (_isLoading)
           const SliverToBoxAdapter(
             child: Padding(
