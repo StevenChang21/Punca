@@ -360,4 +360,37 @@ class FirebaseService {
       return {'foundation': 0.33, 'execution': 0.33, 'precision': 0.34};
     }
   }
+
+  /// Returns total assessment count for a student
+  Future<int> getAssessmentCount(String studentId) async {
+    try {
+      final snapshot = await _assessments
+          .where('studentId', isEqualTo: studentId)
+          .get();
+      return snapshot.docs.length;
+    } catch (e) {
+      debugPrint("Error getting assessment count: $e");
+      return 0;
+    }
+  }
+
+  /// Returns count of unique weak topics for a student
+  Future<int> getWeaknessCount(String studentId) async {
+    try {
+      final snapshot = await _weaknesses
+          .where('studentId', isEqualTo: studentId)
+          .get();
+      // Count unique topics
+      final uniqueTopics = <String>{};
+      for (var doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final topic = data['topic']?.toString() ?? '';
+        if (topic.isNotEmpty) uniqueTopics.add(topic);
+      }
+      return uniqueTopics.length;
+    } catch (e) {
+      debugPrint("Error getting weakness count: $e");
+      return 0;
+    }
+  }
 }
