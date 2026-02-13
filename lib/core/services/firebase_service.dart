@@ -278,14 +278,16 @@ class FirebaseService {
         }
       }
 
-      // Calculate Averages
+      // Calculate Latest Score (Current Mastery)
       Map<String, double?> mastery = {};
       keyScores.forEach((key, scores) {
         if (scores.isEmpty) {
           mastery[key] = null; // Mark as NA
         } else {
-          final avg = scores.reduce((a, b) => a + b) / scores.length;
-          mastery[key] = avg / 100.0;
+          // Since assessments are already fetched with orderBy('createdAt', descending: true)
+          // The first score in the list is the LATEST one.
+          // No need to average.
+          mastery[key] = scores.first / 100.0;
         }
       });
 
