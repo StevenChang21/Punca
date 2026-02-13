@@ -18,12 +18,15 @@ class StudentDashboard extends StatefulWidget {
 class _StudentDashboardState extends State<StudentDashboard> {
   late Future<List<AssessmentResult>> _assessmentsFuture;
   String _studentName = "Student";
+  int _scannedCount = 0;
+  int _weakAreaCount = 0;
 
   @override
   void initState() {
     super.initState();
     _loadData();
     _loadUserName();
+    _loadStats();
   }
 
   Future<void> _loadUserName() async {
@@ -33,6 +36,20 @@ class _StudentDashboardState extends State<StudentDashboard> {
       if (name != null && mounted) {
         setState(() => _studentName = name.split(' ').first);
       }
+    }
+  }
+
+  Future<void> _loadStats() async {
+    final uid = AuthService().currentUser?.uid;
+    if (uid == null) return;
+    final firebaseService = FirebaseService();
+    final scanned = await firebaseService.getAssessmentCount(uid);
+    final weakAreas = await firebaseService.getWeaknessCount(uid);
+    if (mounted) {
+      setState(() {
+        _scannedCount = scanned;
+        _weakAreaCount = weakAreas;
+      });
     }
   }
 
@@ -82,6 +99,21 @@ class _StudentDashboardState extends State<StudentDashboard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildActionCard(context),
+            const SizedBox(height: 16),
+            // Join Class Button — standalone
+            OutlinedButton.icon(
+              onPressed: () => _showJoinClassDialog(context),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              icon: const Icon(Icons.class_),
+              label: const Text("Join a Classroom"),
+            ),
             const SizedBox(height: 24),
             _buildSectionHeader("Your Progress"),
             const SizedBox(height: 16),
@@ -125,6 +157,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
                               ),
                             );
                             _loadData();
+                            _loadStats();
                           },
                           child: const Text("Open History Screen"),
                         ),
@@ -145,7 +178,6 @@ class _StudentDashboardState extends State<StudentDashboard> {
                   );
                 }
 
-                // Already limited by query
                 final recent = snapshot.data!;
 
                 return Column(
@@ -162,7 +194,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
                                   AnalysisResultScreen(result: assessment),
                             ),
                           );
-                          _loadData(); // Refresh on return
+                          _loadData();
+                          _loadStats();
                         },
                       );
                     }),
@@ -177,7 +210,8 @@ class _StudentDashboardState extends State<StudentDashboard> {
                                 builder: (_) => const HistoryScreen(),
                               ),
                             );
-                            _loadData(); // Refresh on return
+                            _loadData();
+                            _loadStats();
                           },
                           child: const Text("View All History"),
                         ),
@@ -224,44 +258,20 @@ class _StudentDashboardState extends State<StudentDashboard> {
             style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
           const SizedBox(height: 20),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    // We can either push the screen or switch tabs.
-                    // For a "Scanner", pushing a fullscreen modal often feels better.
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const CameraScreen()),
-                    );
-                    _loadData(); // Refresh on return
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accent,
-                    foregroundColor: AppColors.primaryDark,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  icon: const Icon(Icons.camera_alt),
-                  label: const Text("Snap Question"),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    _showJoinClassDialog(context);
-                  },
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  icon: const Icon(Icons.class_),
-                  label: const Text("Join Class"),
-                ),
-              ),
-            ],
+          ElevatedButton.icon(
+            onPressed: () async {
+              await Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const CameraScreen()));
+              _loadData();
+              _loadStats();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.accent,
+              foregroundColor: AppColors.primaryDark,
+            ),
+            icon: const Icon(Icons.camera_alt),
+            label: const Text("Snap Question"),
           ),
         ],
       ),
@@ -334,9 +344,21 @@ class _StudentDashboardState extends State<StudentDashboard> {
   Widget _buildStatsRow() {
     return Row(
       children: [
-        Expanded(child: _buildStatCard("Questions", "12", Icons.quiz)),
+        Expanded(
+          child: _buildStatCard(
+            "Scanned",
+            "$_scannedCount",
+            Icons.document_scanner_outlined,
+          ),
+        ),
         const SizedBox(width: 16),
-        Expanded(child: _buildStatCard("Weaknesses", "3", Icons.warning_amber)),
+        Expanded(
+          child: _buildStatCard(
+            "Weak Areas",
+            "$_weakAreaCount",
+            Icons.warning_amber,
+          ),
+        ),
       ],
     );
   }
