@@ -3,6 +3,7 @@ import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/features/teacher/classroom_list_screen.dart';
 import 'package:punca_ai/features/teacher/teacher_dashboard.dart';
 import 'package:punca_ai/core/services/auth_service.dart';
+import 'package:punca_ai/core/services/firebase_service.dart';
 
 class TeacherScaffold extends StatefulWidget {
   const TeacherScaffold({super.key});
@@ -20,6 +21,22 @@ class _TeacherScaffoldState extends State<TeacherScaffold> {
     const Center(child: Text("Reports (Placeholder)")),
     const TeacherProfileTab(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _seedDemoIfNeeded();
+  }
+
+  Future<void> _seedDemoIfNeeded() async {
+    final user = AuthService().currentUser;
+    if (user == null) return;
+    final name = await AuthService().getUserName(user.uid);
+    await FirebaseService().seedDemoClassroom(
+      teacherId: user.uid,
+      teacherName: name ?? user.email ?? 'Teacher',
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

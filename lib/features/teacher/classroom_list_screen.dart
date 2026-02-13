@@ -177,6 +177,7 @@ class _ClassroomListScreenState extends State<ClassroomListScreen> {
             );
             _loadClassrooms(); // Refresh on return
           },
+          onLongPress: () => _showDeleteConfirmation(context, classroom),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
@@ -361,5 +362,42 @@ class _ClassroomListScreenState extends State<ClassroomListScreen> {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final rand = Random();
     return List.generate(6, (_) => chars[rand.nextInt(chars.length)]).join();
+  }
+
+  void _showDeleteConfirmation(
+    BuildContext context,
+    Map<String, dynamic> classroom,
+  ) {
+    final name = classroom['name'] ?? 'this classroom';
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete Classroom"),
+        content: Text(
+          "Are you sure you want to delete \"$name\"? This action cannot be undone.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final classroomId = classroom['id'] as String;
+              await FirebaseService().deleteClassroom(classroomId);
+              if (context.mounted) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text("\"$name\" deleted")));
+              }
+              _loadClassrooms();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("Delete", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 }

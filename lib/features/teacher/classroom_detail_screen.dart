@@ -149,6 +149,11 @@ class _ClassroomDetailScreenState extends State<ClassroomDetailScreen> {
             tooltip: "View Class Code",
             onPressed: () => _showClassCode(context),
           ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            tooltip: "Delete Classroom",
+            onPressed: () => _confirmDelete(context),
+          ),
         ],
       ),
       body: _loading
@@ -219,6 +224,40 @@ class _ClassroomDetailScreenState extends State<ClassroomDetailScreen> {
           SelectableText(
             value,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context) {
+    final name = widget.classroom['name'] ?? 'this classroom';
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete Classroom"),
+        content: Text(
+          "Are you sure you want to delete \"$name\"? This cannot be undone.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final classroomId = widget.classroom['id'] as String;
+              await FirebaseService().deleteClassroom(classroomId);
+              if (context.mounted) {
+                Navigator.pop(context); // Go back to list
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text("\"$name\" deleted")));
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("Delete", style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

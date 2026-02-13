@@ -559,4 +559,132 @@ class FirebaseService {
       return [];
     }
   }
+
+  // ── Demo Seed ──
+
+  /// Seeds a demo classroom with fake students for a teacher.
+  /// Only runs once per teacher (checks for existing demo classroom).
+  Future<void> seedDemoClassroom({
+    required String teacherId,
+    required String teacherName,
+  }) async {
+    try {
+      // Check if demo classroom already exists
+      final existing = await _firestore
+          .collection('classrooms')
+          .where('teacherId', isEqualTo: teacherId)
+          .where('isDemo', isEqualTo: true)
+          .get();
+
+      if (existing.docs.isNotEmpty) {
+        debugPrint("Demo classroom already exists, skipping seed.");
+        return;
+      }
+
+      debugPrint("Seeding demo classroom for $teacherName...");
+
+      // 5 fake students
+      final fakeStudents = [
+        {'name': 'Aisha Binti Ahmad', 'form': 'Form 2'},
+        {'name': 'Tan Wei Ming', 'form': 'Form 2'},
+        {'name': 'Raj Kumar', 'form': 'Form 2'},
+        {'name': 'Nurul Izzah', 'form': 'Form 2'},
+        {'name': 'Lee Jia Wen', 'form': 'Form 2'},
+      ];
+
+      final studentIds = <String>[];
+
+      for (final student in fakeStudents) {
+        // Create fake user doc
+        final userRef = _firestore.collection('users').doc();
+        final uid = userRef.id;
+        studentIds.add(uid);
+
+        await userRef.set({
+          'displayName': student['name'],
+          'email':
+              '${student['name']!.toLowerCase().replaceAll(' ', '.')}@demo.punca.ai',
+          'form': student['form'],
+          'role': 'student',
+          'isDemo': true,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        // Create fake assessments for this student
+        await _seedStudentAssessments(uid);
+      }
+
+      // Create the demo classroom
+      await _firestore.collection('classrooms').add({
+        'name': 'Form 2 Math (Demo)',
+        'teacherId': teacherId,
+        'teacherName': teacherName,
+        'code': 'DEMO01',
+        'studentIds': studentIds,
+        'isDemo': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      debugPrint("✅ Demo classroom seeded with ${studentIds.length} students.");
+    } catch (e) {
+      debugPrint("Error seeding demo classroom: $e");
+    }
+  }
+
+  Future<void> _seedStudentAssessments(String studentId) async {
+    final topics = [
+      {
+        'subject': 'Algebraic Expansion',
+        'grade': '45',
+        'gapType': 'foundation',
+      },
+      {'subject': 'Factorisation', 'grade': '62', 'gapType': 'execution'},
+      {'subject': 'Linear Equations', 'grade': '78', 'gapType': 'precision'},
+      {
+        'subject': 'Patterns & Sequences',
+        'grade': '85',
+        'gapType': 'precision',
+      },
+      {'subject': 'Polygons', 'grade': '70', 'gapType': 'execution'},
+    ];
+
+    // Pick 2-3 random assessments per student
+    topics.shuffle();
+    final count = 2 + (topics.length % 2); // 2 or 3
+    final selected = topics.take(count);
+
+    for (final t in selected) {
+      // Save assessment
+      await _assessments.add({
+        'studentId': studentId,
+        'subject': t['subject'],
+        'grade': t['grade'],
+        'imageUrls': [],
+        'weaknesses': [
+          {
+            'topic': t['subject'],
+            'reason': 'Needs more practice',
+            'gap_type': t['gapType'],
+            'action': 'Review chapter and do practice exercises',
+            'priority': 5,
+            'mistake_example': '2x + 3 = 7 → x = 3',
+            'correction_example': '2x + 3 = 7 → 2x = 4 → x = 2',
+          },
+        ],
+        'createdAt': FieldValue.serverTimestamp(),
+        'isDemo': true,
+      });
+
+      // Save weakness to top-level collection for getGapAnalysis
+      await _weaknesses.add({
+        'studentId': studentId,
+        'topic': t['subject'],
+        'reason': 'Needs more practice',
+        'gap_type': t['gapType'],
+        'action': 'Review chapter',
+        'isDemo': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
 }
