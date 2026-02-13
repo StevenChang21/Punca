@@ -19,8 +19,8 @@ class MathText extends StatelessWidget {
     // 1. Basic sanitization
     String processed = content.replaceAll(r'\\', r'\');
 
-    // 2. Split by newlines (handle both \n and \\n)
-    List<String> lines = processed.split(RegExp(r'\n|\\\\n'));
+    // 2. Split by newlines (handle \n, \r\n, and literal \n)
+    List<String> lines = processed.split(RegExp(r'\r\n|\n|\\n'));
 
     return Column(
       crossAxisAlignment: isCentered
@@ -66,7 +66,8 @@ class MixedMathText extends StatelessWidget {
   Widget build(BuildContext context) {
     // 1. Basic sanitization of newlines
     String processed = content.replaceAll(r'\\', r'\');
-    List<String> lines = processed.split(RegExp(r'\n|\\\\n'));
+    // Split by \n, \r\n, or literal \n
+    List<String> lines = processed.split(RegExp(r'\r\n|\n|\\n'));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
