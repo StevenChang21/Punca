@@ -16,6 +16,7 @@ class AssessmentResult {
   final List<String> imageUrls;
   final String subject;
   final List<String> topics; // New field for granularity
+  final List<SyllabusPointer> syllabusIds; // New field for robust matching
   final String grade;
   final String confidenceBuilder;
   final List<Weakness> weaknesses;
@@ -30,6 +31,7 @@ class AssessmentResult {
     required this.imageUrls,
     required this.subject,
     this.topics = const [],
+    this.syllabusIds = const [],
     required this.grade,
     required this.confidenceBuilder,
     required this.weaknesses,
@@ -49,6 +51,7 @@ class AssessmentResult {
       imageUrls: imageUrls,
       subject: subject,
       topics: topics,
+      syllabusIds: syllabusIds,
       grade: grade,
       confidenceBuilder: confidenceBuilder,
       weaknesses: weaknesses,
@@ -70,6 +73,11 @@ class AssessmentResult {
       imageUrls: imageUrls,
       subject: json['subject'] ?? 'Unknown',
       topics: List<String>.from(json['topics_identified'] ?? []),
+      syllabusIds:
+          ((json['syllabus_matches'] as List?)
+              ?.map((e) => SyllabusPointer.fromJson(e))
+              .toList() ??
+          []),
       grade: json['grade'] ?? 'Pending',
       confidenceBuilder:
           json['confidence_builder'] ?? json['confidenceBuilder'] ?? '',
@@ -104,6 +112,7 @@ class AssessmentResult {
       'imageUrl': imageUrls.isNotEmpty ? imageUrls.first : null, // Legacy
       'subject': subject,
       'topics': topics,
+      'syllabusIds': syllabusIds.map((e) => e.toMap()).toList(),
       'grade': grade,
       'confidenceBuilder': confidenceBuilder,
       'weaknesses': weaknesses.map((w) => w.toMap()).toList(),
@@ -265,7 +274,7 @@ class SyllabusPointer {
   factory SyllabusPointer.fromJson(Map<String, dynamic> json) {
     return SyllabusPointer(
       form: _safeParseInt(json['form']) ?? 0,
-      chapterId: _safeParseInt(json['chapter_id']) ?? 0,
+      chapterId: _safeParseInt(json['chapter_id'] ?? json['chapter']) ?? 0,
       subtopicId: _safeParseInt(json['subtopic_id']),
     );
   }

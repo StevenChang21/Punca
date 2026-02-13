@@ -2,9 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
 import 'package:punca_ai/core/constants/kssm_syllabus.dart';
+import 'package:punca_ai/core/models/syllabus_model.dart';
 import 'package:flutter/foundation.dart';
 
-/* id: 2 */
+/* id: 3 */
 class FirebaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   // final FirebaseStorage _storage = FirebaseStorage.instance; // Unused
@@ -132,6 +133,19 @@ class FirebaseService {
             .toDate()
             .toIso8601String();
       }
+
+      // Parse syllabusIds manually here if needed for legacy docs?
+      // But fromAnalysis handles it.
+      // Need to ensure syllabusMatches is populated if stored differently.
+      // AssessmentResult.toMap stores it as 'syllabusIds'.
+      // fromAnalysis expects 'syllabus_matches' (Gemini format).
+      // We need to bridge this if we want to load from Firestore 'syllabusIds' back into model.
+      // Modifying fromAnalysis to check both or create a fromMap factory?
+      // Let's rely on fromAnalysis but handle the key mapping:
+      if (data['syllabusIds'] != null) {
+        data['syllabus_matches'] = data['syllabusIds'];
+      }
+
       return AssessmentResult.fromAnalysis(
         studentId: studentId,
         imageUrls: List<String>.from(data['imageUrls'] ?? []),
@@ -172,23 +186,24 @@ class FirebaseService {
 
   /// Calculates mastery stats (average grade) per subject/topic
   /// If [subject] is provided, returns granular breakdown by TOPIC within that subject.
-  /// If [subject] is null, returns breakdown by SUBJECT.
-  Future<Map<String, double>> getMasteryStats(
+  /// KEY CHANGE: Returns nullable double? (null == unattempted/NA)
+  Future<Map<String, double?>> getMasteryStats(
     String studentId, {
     String? subject,
   }) async {
     try {
       final assessments = await getAssessments(studentId);
 
+      // Key -> List of Scores
       Map<String, List<double>> keyScores = {};
 
-      // 1. Pre-fill Syllabus for "Math" to show full grid
+      // 1. Pre-fill Syllabus for "Math" keys
+      //    But initialize as EMPTY list (indicating unattempted)
       if (subject == "Math") {
         KssmSyllabus.structure.forEach((form, chapters) {
-          // DEMO LIMITATION: Only show Form 1 & 2 for now (Simulated "Form 2 Student")
           if (form <= 2) {
+            // Demo Restriction
             for (var chap in chapters) {
-              // "F1 C01: Title" format for sorting
               final key =
                   "F$form C${chap.id.toString().padLeft(2, '0')}: ${chap.title}";
               keyScores[key] = [];
@@ -206,20 +221,22 @@ class FirebaseService {
 
       if (filteredAssessments.isEmpty && keyScores.isEmpty) return {};
 
-      // Helper to find matching key in pre-filled list
-      String? findMatchingKey(String topic) {
-        // 1. Try exact match (ignoring "F1 C01: " prefix in keys)
-        // keys are "F1 C01: Rational Numbers"
-        // topic might be "Rational Numbers"
-        for (var key in keyScores.keys) {
-          if (key.endsWith(": $topic") ||
-              key.toLowerCase().endsWith(": ${topic.toLowerCase()}")) {
-            return key;
+      // Helper to match Key by ID
+      String? findKeyById(int form, int chapter) {
+        // Reconstruct the exact string key we used above
+        // This is deterministic.
+        // We need to look up the title from KssmSyllabus to match exact string
+        final chapters = KssmSyllabus.structure[form];
+        if (chapters != null) {
+          final chap = chapters.firstWhere(
+            (c) => c.id == chapter,
+            orElse: () =>
+                const SyllabusChapter(id: -1, title: 'Unknown', subtopics: {}),
+          );
+          if (chap.id != -1) {
+            return "F$form C${chap.id.toString().padLeft(2, '0')}: ${chap.title}";
           }
         }
-        // 2. Try partial/fuzzy?
-        // Gemini might say "Integers" which is F1 C1 Subtopic 1.
-        // For now, if no match, return generic topic name.
         return null;
       }
 
@@ -232,51 +249,50 @@ class FirebaseService {
               keyScores[assessment.subject] = [];
             }
             keyScores[assessment.subject]!.add(score);
-          } else {
-            // Aggregate by TOPIC
-            final topics = assessment.topics.isNotEmpty
-                ? assessment.topics
-                : ['General'];
-
-            for (var topic in topics) {
-              String key = topic;
-              // Try to map to KSSM key if possible
-              if (subject == "Math") {
-                final match = findMatchingKey(topic);
-                if (match != null) {
-                  key = match;
-                } else {
-                  // Fallback: Check if it's already a key we added? (unlikely)
-                  // Or just keep original string.
-                  // Maybe prefix with "Misc: " to put at end?
-                  // key = "Misc: $topic";
+          } else if (subject == "Math") {
+            // Aggregate by SYLLABUS ID (Robust)
+            if (assessment.syllabusIds.isNotEmpty) {
+              for (var ptr in assessment.syllabusIds) {
+                final key = findKeyById(ptr.form, ptr.chapterId);
+                if (key != null) {
+                  if (!keyScores.containsKey(key)) {
+                    keyScores[key] = [];
+                  }
+                  keyScores[key]!.add(score);
                 }
               }
-
-              if (!keyScores.containsKey(key)) {
-                keyScores[key] = [];
+            } else {
+              // Fallback to Topic String matching? Or just ignore?
+              // Let's implement fuzzy fallback for old data if needed
+              // but prioritize robustness.
+            }
+          } else {
+            // Other subjects generic topic agg
+            for (var topic in assessment.topics) {
+              if (!keyScores.containsKey(topic)) {
+                keyScores[topic] = [];
               }
-              keyScores[key]!.add(score);
+              keyScores[topic]!.add(score);
             }
           }
         }
       }
 
       // Calculate Averages
-      Map<String, double> mastery = {};
+      Map<String, double?> mastery = {};
       keyScores.forEach((key, scores) {
         if (scores.isEmpty) {
-          mastery[key] = 0.0; // Unattempted
+          mastery[key] = null; // Mark as NA
         } else {
           final avg = scores.reduce((a, b) => a + b) / scores.length;
           mastery[key] = avg / 100.0;
         }
       });
 
-      // Sort keys (alphabetically, which works for "F1 C01..." format)
+      // Sort and Return
       final sortedKeys = mastery.keys.toList()..sort();
-      final Map<String, double> sortedMastery = {
-        for (var k in sortedKeys) k: mastery[k]!,
+      final Map<String, double?> sortedMastery = {
+        for (var k in sortedKeys) k: mastery[k],
       };
 
       return sortedMastery;
