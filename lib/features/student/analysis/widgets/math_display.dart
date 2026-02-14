@@ -252,50 +252,56 @@ class MixedMathText extends StatelessWidget {
       );
     }
 
-    // If NO explicit delimiters, fallback to heuristic
-    if (_isLikelyMath(line)) {
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Math.tex(
-          line,
-          textStyle:
-              textStyle ??
-              const TextStyle(fontSize: 16, color: AppColors.textPrimary),
-          mathStyle: MathStyle.display,
-          onErrorFallback: (err) => Text(
-            line,
-            // If it looked like math but failed, render as text.
-            // Color it normally so it doesn't look like an error to the user,
-            // just potentially unformatted.
-            style:
-                textStyle ??
-                const TextStyle(fontSize: 16, color: AppColors.textPrimary),
-          ),
-        ),
+    // No explicit $...$ delimiters — handle **bold** and render as text
+    return _buildTextWithBold(line);
+  }
+
+  /// Handles **bold** markdown and renders as text using Wrap for inline layout.
+  Widget _buildTextWithBold(String text) {
+    final RegExp boldExp = RegExp(r'\*\*(.*?)\*\*');
+    if (!boldExp.hasMatch(text)) {
+      return Text(
+        text,
+        style:
+            textStyle ??
+            const TextStyle(fontSize: 16, color: AppColors.textPrimary),
       );
     }
 
-    // Default: Render as plain text
-    return Text(
-      line,
-      style:
-          textStyle ??
-          const TextStyle(fontSize: 16, color: AppColors.textPrimary),
+    final List<InlineSpan> spans = [];
+    text.splitMapJoin(
+      boldExp,
+      onMatch: (m) {
+        spans.add(
+          TextSpan(
+            text: m.group(1) ?? '',
+            style:
+                (textStyle ??
+                        const TextStyle(
+                          fontSize: 16,
+                          color: AppColors.textPrimary,
+                        ))
+                    .copyWith(fontWeight: FontWeight.bold),
+          ),
+        );
+        return '';
+      },
+      onNonMatch: (n) {
+        if (n.isNotEmpty) {
+          spans.add(
+            TextSpan(
+              text: n,
+              style:
+                  textStyle ??
+                  const TextStyle(fontSize: 16, color: AppColors.textPrimary),
+            ),
+          );
+        }
+        return '';
+      },
     );
-  }
 
-  bool _isLikelyMath(String text) {
-    // Heuristic: Check for common math symbols that imply formula
-    // =, \, ^, _, {, }, or mixed numbers/operators without much text
-    if (text.contains(r'\')) return true; // LaTeX command
-    if (text.contains('^')) return true;
-    if (text.contains('_')) return true;
-    if (text.contains('=')) return true;
-
-    // Simple equations like "x + 2" are harder to distinguish from text "item + item"
-    // but usually math questions are short.
-    // Let's rely on strong signals for now to avoid false positives (eating spaces).
-    return false;
+    return RichText(text: TextSpan(children: spans));
   }
 }
 
