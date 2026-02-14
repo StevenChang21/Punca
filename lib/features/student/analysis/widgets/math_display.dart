@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:punca_ai/config/app_theme.dart';
 
 class MathText extends StatelessWidget {
@@ -64,9 +65,82 @@ class MixedMathText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 0. Check for [SVG]...[/SVG] markers first
+    final svgPattern = RegExp(r'\[SVG\](.*?)\[/SVG\]', dotAll: true);
+    if (svgPattern.hasMatch(content)) {
+      return _buildWithSvg(context, svgPattern);
+    }
+
     // 1. Basic sanitization of newlines
     String processed = content.replaceAll(r'\\', r'\');
     // Split by \n, \r\n, or literal \n
+    List<String> lines = processed.split(RegExp(r'\r\n|\n|\\n'));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: lines.map((line) {
+        if (line.trim().isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2.0),
+          child: _buildLine(context, line),
+        );
+      }).toList(),
+    );
+  }
+
+  /// Splits content into text and SVG segments, rendering each appropriately.
+  Widget _buildWithSvg(BuildContext context, RegExp svgPattern) {
+    final List<Widget> widgets = [];
+    int lastEnd = 0;
+
+    for (final match in svgPattern.allMatches(content)) {
+      // Text before this SVG
+      if (match.start > lastEnd) {
+        final textBefore = content.substring(lastEnd, match.start);
+        widgets.add(_buildTextSegment(context, textBefore));
+      }
+
+      // SVG segment
+      final svgString = match.group(1) ?? '';
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12.0),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: SvgPicture.string(
+                svgString,
+                fit: BoxFit.contain,
+                width: 250,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      lastEnd = match.end;
+    }
+
+    // Text after last SVG
+    if (lastEnd < content.length) {
+      final textAfter = content.substring(lastEnd);
+      widgets.add(_buildTextSegment(context, textAfter));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets,
+    );
+  }
+
+  /// Renders a text segment through the existing line-by-line pipeline.
+  Widget _buildTextSegment(BuildContext context, String text) {
+    String processed = text.replaceAll(r'\\', r'\');
     List<String> lines = processed.split(RegExp(r'\r\n|\n|\\n'));
 
     return Column(
