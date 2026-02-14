@@ -40,12 +40,16 @@ class AnalysisResultScreen extends StatelessWidget {
         // 3. Save if generated successfully
         if (drill != null) {
           result.remediationDrills.add(drill);
-          // Fire and forget save (or await if critical, but for UX speed let's just trigger it)
           FirebaseService().updateAssessment(result);
         }
       }
 
       if (drill != null && context.mounted) {
+        // Collect all drills for this weakness (base + challenges)
+        final allDrills = result.remediationDrills
+            .where((d) => d.weaknessId == weakness.id)
+            .toList();
+
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
@@ -53,19 +57,11 @@ class AnalysisResultScreen extends StatelessWidget {
           builder: (_) => RemediationSheet(
             drill: drill!,
             weakness: weakness,
-            onMorePractice: () {}, // Optional future expansion
+            drillHistory: allDrills,
+            onMorePractice: () {},
             onDrillUpdated: (updatedDrill) {
-              // Replace the drill in the result and persist
-              final idx = result.remediationDrills.indexWhere(
-                (d) => d.weaknessId == weakness.id,
-              );
-              if (idx != -1) {
-                result.remediationDrills[idx] = updatedDrill;
-              } else {
-                result.remediationDrills.add(updatedDrill);
-              }
-              // Also update the local reference so reopening uses the latest
-              drill = updatedDrill;
+              // Append the new challenge drill (don't replace)
+              result.remediationDrills.add(updatedDrill);
               FirebaseService().updateAssessment(result);
             },
           ),

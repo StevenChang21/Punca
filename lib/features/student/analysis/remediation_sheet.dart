@@ -10,6 +10,7 @@ class RemediationSheet extends StatefulWidget {
   final Weakness weakness;
   final VoidCallback onMorePractice;
   final ValueChanged<RemediationDrill>? onDrillUpdated;
+  final List<RemediationDrill> drillHistory;
 
   const RemediationSheet({
     super.key,
@@ -17,6 +18,7 @@ class RemediationSheet extends StatefulWidget {
     required this.weakness,
     required this.onMorePractice,
     this.onDrillUpdated,
+    this.drillHistory = const [],
   });
 
   @override
@@ -48,8 +50,21 @@ class _RemediationSheetState extends State<RemediationSheet> {
   @override
   void initState() {
     super.initState();
-    _initDrill(widget.drill);
-    _drillHistory.add(widget.drill);
+    // Load history from parent (persisted drills)
+    if (widget.drillHistory.isNotEmpty) {
+      _drillHistory.addAll(widget.drillHistory);
+      final lastDrill = _drillHistory.last;
+      _initDrill(lastDrill);
+      _level = _drillHistory.length - 1;
+      _viewingLevel = _level;
+      // Mark all past levels as answered (they were completed before)
+      for (int i = 0; i < _drillHistory.length - 1; i++) {
+        _answeredLevels[i] = true;
+      }
+    } else {
+      _initDrill(widget.drill);
+      _drillHistory.add(widget.drill);
+    }
   }
 
   void _initDrill(RemediationDrill drill) {
@@ -344,6 +359,25 @@ class _RemediationSheetState extends State<RemediationSheet> {
                             elevation: 0,
                             side: const BorderSide(color: AppColors.primary),
                             padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () {
+                            setState(() => _practiceStarted = true);
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (_scrollController.hasClients) {
+                                _scrollController.animateTo(
+                                  _scrollController.position.maxScrollExtent,
+                                  duration: const Duration(milliseconds: 500),
+                                  curve: Curves.easeOut,
+                                );
+                              }
+                            });
+                          },
+                          child: const Text(
+                            "Skip to Practice →",
+                            style: TextStyle(color: Colors.grey, fontSize: 13),
                           ),
                         ),
                       ] else if (!_practiceStarted) ...[
