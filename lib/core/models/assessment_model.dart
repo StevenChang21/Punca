@@ -304,13 +304,16 @@ class RemediationDrill {
   });
 
   factory RemediationDrill.fromJson(Map<String, dynamic> json) {
-    final options = (json['options'] as List? ?? []).cast<String>();
+    // Restore LaTeX in options first, before deriving correctAnswer
+    final rawOptions = (json['options'] as List? ?? []).cast<String>();
+    final options = rawOptions.map((o) => _restoreLatex(o)).toList();
+
     String correctAnswer = json['correct_answer'] ?? '';
 
     // Prefer index if available for strictness
     final int? idx = _safeParseInt(json['correct_option_index']);
     if (idx != null && idx >= 0 && idx < options.length) {
-      correctAnswer = options[idx];
+      correctAnswer = options[idx]; // Now uses restored options
     }
 
     final vocabularyBridge = (json['vocabulary_bridge'] as List? ?? [])
@@ -322,7 +325,7 @@ class RemediationDrill {
       miniLesson: _restoreLatex(json['mini_lesson'] ?? ''),
       twinQuestion: _restoreLatex(json['twin_question'] ?? ''),
       correctAnswer: correctAnswer,
-      options: options.map((o) => _restoreLatex(o)).toList(),
+      options: options,
       vocabularyBridge: vocabularyBridge,
       weaknessId: json['weakness_id'] ?? '',
     );

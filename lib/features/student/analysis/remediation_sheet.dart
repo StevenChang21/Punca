@@ -109,15 +109,16 @@ class _RemediationSheetState extends State<RemediationSheet> {
 
     if (mounted) {
       if (newDrill != null) {
-        // Preserve the original mini lesson and vocabulary
+        // Always preserve the ORIGINAL (base) mini lesson and vocabulary
+        final baseDrill = _drillHistory[0];
         final hybridDrill = RemediationDrill(
           title: newDrill.title,
-          miniLesson: _currentDrill.miniLesson,
+          miniLesson: baseDrill.miniLesson,
           twinQuestion: newDrill.twinQuestion,
           correctAnswer: newDrill.correctAnswer,
           options: newDrill.options,
-          vocabularyBridge: _currentDrill.vocabularyBridge,
-          weaknessId: _currentDrill.weaknessId,
+          vocabularyBridge: baseDrill.vocabularyBridge,
+          weaknessId: baseDrill.weaknessId,
         );
 
         setState(() {
