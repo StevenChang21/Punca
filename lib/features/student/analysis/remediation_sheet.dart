@@ -9,12 +9,14 @@ class RemediationSheet extends StatefulWidget {
   final RemediationDrill drill;
   final Weakness weakness;
   final VoidCallback onMorePractice;
+  final ValueChanged<RemediationDrill>? onDrillUpdated;
 
   const RemediationSheet({
     super.key,
     required this.drill,
     required this.weakness,
     required this.onMorePractice,
+    this.onDrillUpdated,
   });
 
   @override
@@ -102,6 +104,9 @@ class _RemediationSheetState extends State<RemediationSheet> {
           _isAnswered = false;
           _isLoading = false;
         });
+
+        // Persist the updated drill
+        widget.onDrillUpdated?.call(hybridDrill);
 
         if (_scrollController.hasClients) {
           _scrollController.animateTo(

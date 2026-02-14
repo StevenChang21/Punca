@@ -54,6 +54,20 @@ class AnalysisResultScreen extends StatelessWidget {
             drill: drill!,
             weakness: weakness,
             onMorePractice: () {}, // Optional future expansion
+            onDrillUpdated: (updatedDrill) {
+              // Replace the drill in the result and persist
+              final idx = result.remediationDrills.indexWhere(
+                (d) => d.weaknessId == weakness.id,
+              );
+              if (idx != -1) {
+                result.remediationDrills[idx] = updatedDrill;
+              } else {
+                result.remediationDrills.add(updatedDrill);
+              }
+              // Also update the local reference so reopening uses the latest
+              drill = updatedDrill;
+              FirebaseService().updateAssessment(result);
+            },
           ),
         );
       } else if (context.mounted) {
