@@ -233,7 +233,8 @@ class GeminiService {
     }
   }
 
-  /// Generates a HARDER challenge drill based on the previous one
+  /// Generates a HARDER challenge drill based on the previous one.
+  /// Only generates the question — mini lesson is preserved by the caller.
   Future<RemediationDrill?> generateChallengeDrill(
     Weakness weakness,
     RemediationDrill previousDrill,
@@ -242,33 +243,30 @@ class GeminiService {
     try {
       final prompt =
           """
-      ACT AS A MALAYSIAN KSSM MATH TUTOR.
-      
-      TASK: Generate a "LEVEL UP" Challenge Question (Level $level/2) for this student.
-      
-      PREVIOUS QUESTION: "${previousDrill.twinQuestion}"
-      CONCEPT: "${previousDrill.miniLesson}"
-      
-      INSTRUCTION:
-      1. Create a NEW question testing the SAME weakness but HARDER.
-      2. LEVEL 1: Change the numbers to be trickier (e.g. involve negatives or larger factors or fractions).
-      3. LEVEL 2: Change the CONTEXT or add a small twist (e.g. "Try solving this backwards" or "Word problem style").
-      4. RETAIN the "Mini Lesson". You can reuse the previous one or refine it slightly for the new context.
-      5. Strict KSSM methods apply.
+    ACT AS A MALAYSIAN KSSM MATH TUTOR.
+    
+    TASK: Generate a "LEVEL UP" Challenge Question (Level $level/2) for this student.
+    
+    PREVIOUS QUESTION: "${previousDrill.twinQuestion}"
+    WEAK TOPIC: "${weakness.topic}"
+    ERROR TYPE: "${weakness.gapType.name}"
+    
+    INSTRUCTION:
+    1. Create a NEW question testing the SAME weakness but HARDER.
+    2. LEVEL 1: Change the numbers to be trickier (e.g. involve negatives or larger factors or fractions).
+    3. LEVEL 2: Change the CONTEXT or add a small twist (e.g. "Try solving this backwards" or "Word problem style").
+    4. Do NOT generate a mini lesson. The original lesson will be kept.
+    5. Strict KSSM methods apply. Wrap math in '\$' delimiters.
 
-      OUTPUT FORMAT (JSON ONLY):
-      {
-        "drill_title": "Level Up Challenge!",
-        "mini_lesson": "The Mini Lesson text (Analogy + Visual Steps). Wrap math in '\$' delimiters. Start numbered steps with \\\\n.",
-        "vocabulary_bridge": [
-          {"term": "Key Term", "translation": "Chinese Term", "context": "Brief definition"}
-        ],
-        "twin_question": "The new HARDER question.",
-        "options": ["Option A", "Option B", "Option C", "Option D"],
-        "correct_option_index": 0, // Integer 0-3
-        "explanation": "Step-by-step KSSM solution."
-      }
-      """;
+    OUTPUT FORMAT (JSON ONLY):
+    {
+      "drill_title": "Level Up Challenge!",
+      "twin_question": "The new HARDER question.",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct_option_index": 0,
+      "explanation": "Step-by-step KSSM solution."
+    }
+    """;
 
       final content = [Content.text(prompt)];
       final response = await _model.generateContent(content);

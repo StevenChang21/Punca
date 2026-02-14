@@ -83,8 +83,19 @@ class _RemediationSheetState extends State<RemediationSheet> {
 
     if (mounted) {
       if (newDrill != null) {
+        // Preserve the original mini lesson and vocabulary
+        final hybridDrill = RemediationDrill(
+          title: newDrill.title,
+          miniLesson: _currentDrill.miniLesson,
+          twinQuestion: newDrill.twinQuestion,
+          correctAnswer: newDrill.correctAnswer,
+          options: newDrill.options,
+          vocabularyBridge: _currentDrill.vocabularyBridge,
+          weaknessId: _currentDrill.weaknessId,
+        );
+
         setState(() {
-          _initDrill(newDrill);
+          _initDrill(hybridDrill);
           _level = nextLevel;
           _selectedOption = null;
           _isAnswered = false;
