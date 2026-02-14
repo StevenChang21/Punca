@@ -26,11 +26,18 @@ class RemediationSheet extends StatefulWidget {
 class _RemediationSheetState extends State<RemediationSheet> {
   late RemediationDrill _currentDrill;
   int _level = 0; // 0=Base, 1=Hard, 2=Hardest
+  int _viewingLevel = 0; // Which level the student is currently viewing
   bool _isLoading = false;
 
   String? _selectedOption;
   bool _isAnswered =
       false; // True if the User has successfully found the Correct Answer
+
+  // History of all drills (index = level)
+  final List<RemediationDrill> _drillHistory = [];
+  // Track answer state per level
+  final Map<int, String?> _selectedOptions = {};
+  final Map<int, bool> _answeredLevels = {};
 
   List<String> _lessonChunks = [];
   int _visibleChunkCount = 0;
@@ -42,6 +49,7 @@ class _RemediationSheetState extends State<RemediationSheet> {
   void initState() {
     super.initState();
     _initDrill(widget.drill);
+    _drillHistory.add(widget.drill);
   }
 
   void _initDrill(RemediationDrill drill) {
@@ -59,17 +67,18 @@ class _RemediationSheetState extends State<RemediationSheet> {
   }
 
   void _handleOptionSelect(String option) {
-    if (_isAnswered || _isLoading) return; // Lock interactions
+    if (_isAnswered || _isLoading) return;
+    if (_viewingLevel != _level) return; // Can't answer past questions
 
     final isCorrect = option == _currentDrill.correctAnswer;
 
     setState(() {
       _selectedOption = option;
+      _selectedOptions[_viewingLevel] = option;
       if (isCorrect) {
-        _isAnswered = true; // Lock session as "Success"
+        _isAnswered = true;
+        _answeredLevels[_viewingLevel] = true;
       }
-      // If wrong, we just update _selectedOption to show Red,
-      // but _isAnswered stays false so they can tap again.
     });
   }
 
@@ -99,7 +108,9 @@ class _RemediationSheetState extends State<RemediationSheet> {
         setState(() {
           // Swap drill but keep lesson visibility intact
           _currentDrill = hybridDrill;
+          _drillHistory.add(hybridDrill);
           _level = nextLevel;
+          _viewingLevel = nextLevel;
           _selectedOption = null;
           _isAnswered = false;
           _isLoading = false;
@@ -133,7 +144,7 @@ class _RemediationSheetState extends State<RemediationSheet> {
       }
     });
 
-    // Auto-scroll to show new content
+    // Auto-scroll to the bottom so the user can see the new chunk
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -142,6 +153,16 @@ class _RemediationSheetState extends State<RemediationSheet> {
           curve: Curves.easeOut,
         );
       }
+    });
+  }
+
+  void _switchToLevel(int level) {
+    if (level < 0 || level >= _drillHistory.length) return;
+    setState(() {
+      _viewingLevel = level;
+      _currentDrill = _drillHistory[level];
+      _selectedOption = _selectedOptions[level];
+      _isAnswered = _answeredLevels[level] == true;
     });
   }
 
@@ -361,8 +382,50 @@ class _RemediationSheetState extends State<RemediationSheet> {
 
               // Question Header (HIDDEN UNTIL LESSON COMPLETE)
               if (_practiceStarted) ...[
+                // Level navigation chips (only show if there's history)
+                if (_drillHistory.length > 1) ...[
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: List.generate(_drillHistory.length, (i) {
+                        final isViewing = _viewingLevel == i;
+                        final isAnswered = _answeredLevels[i] == true;
+                        final label = i == 0 ? 'Base' : 'Level $i';
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(label),
+                                if (isAnswered) ...[
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                    Icons.check_circle,
+                                    size: 14,
+                                    color: Colors.green,
+                                  ),
+                                ],
+                              ],
+                            ),
+                            selected: isViewing,
+                            selectedColor: AppColors.primary.withValues(
+                              alpha: 0.15,
+                            ),
+                            onSelected: (_) => _switchToLevel(i),
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 Text(
-                  _level == 0 ? "Quick Practice" : "Solve This (Harder!)",
+                  _viewingLevel == 0
+                      ? 'Quick Practice'
+                      : (_viewingLevel == _level
+                            ? 'Solve This (Harder!)'
+                            : 'Past Question (Level $_viewingLevel)'),
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -472,7 +535,10 @@ class _RemediationSheetState extends State<RemediationSheet> {
                 const SizedBox(height: 12),
 
                 // Action Buttons
-                if (_isAnswered && _level < 2 && !_isLoading)
+                if (_isAnswered &&
+                    _level < 2 &&
+                    !_isLoading &&
+                    _viewingLevel == _level)
                   ElevatedButton.icon(
                     onPressed: _handleChallenge,
                     style: ElevatedButton.styleFrom(
