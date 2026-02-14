@@ -201,7 +201,7 @@ class GeminiService {
         "vocabulary_bridge": [
           {"term": "Key Term (e.g. 'Perimeter')", "translation": "Chinese Term (e.g. '周长')", "context": "Brief definition in English"}
         ],
-        "twin_question": "A NEW twin question (same concept, different numbers) for practice.",
+        "twin_question": "A NEW twin question (same concept, different numbers). For geometry/visual topics, embed an [SVG]<svg>...</svg>[/SVG] diagram in the question if it helps (e.g. showing a shape to find area/perimeter). Same SVG rules as mini_lesson.",
         "options": ["Option A", "Option B", "Option C", "Option D"],
         "correct_option_index": 0, // Integer 0-3
         "explanation": "Step-by-step solution using the KSSM method. Keep it simple."
@@ -261,7 +261,7 @@ class GeminiService {
     OUTPUT FORMAT (JSON ONLY):
     {
       "drill_title": "Level Up Challenge!",
-      "twin_question": "The new HARDER question.",
+      "twin_question": "The new HARDER question. For geometry/visual topics, embed an [SVG]<svg>...</svg>[/SVG] diagram if it helps illustrate the problem. SVG rules: max viewBox 250x200, stroke='#6C63FF', fill='none', label values with <text>.",
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correct_option_index": 0,
       "explanation": "Step-by-step KSSM solution."
