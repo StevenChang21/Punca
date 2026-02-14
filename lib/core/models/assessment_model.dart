@@ -322,7 +322,7 @@ class RemediationDrill {
       miniLesson: _restoreLatex(json['mini_lesson'] ?? ''),
       twinQuestion: _restoreLatex(json['twin_question'] ?? ''),
       correctAnswer: correctAnswer,
-      options: options,
+      options: options.map((o) => _restoreLatex(o)).toList(),
       vocabularyBridge: vocabularyBridge,
       weaknessId: json['weakness_id'] ?? '',
     );
