@@ -138,8 +138,8 @@ class MistakeInstance {
 
   factory MistakeInstance.fromJson(Map<String, dynamic> json) {
     return MistakeInstance(
-      mistake: json['mistake'] ?? '',
-      correction: json['correction'] ?? '',
+      mistake: _restoreLatex(json['mistake'] ?? ''),
+      correction: _restoreLatex(json['correction'] ?? ''),
       pageNumber: _safeParseInt(json['page_number']) ?? 1,
       questionId: json['question_id']?.toString() ?? '',
     );
@@ -331,16 +331,6 @@ class RemediationDrill {
     );
   }
 
-  /// JSON decode eats LaTeX backslashes: \frac → formfeed+rac, \times → tab+imes.
-  /// This restores control characters back to backslash sequences for LaTeX rendering.
-  static String _restoreLatex(String text) {
-    return text
-        .replaceAll('\t', r'\t') // tab → \t (\times, \theta, \text, \tan)
-        .replaceAll('\f', r'\f') // formfeed → \f (\frac, \forall)
-        .replaceAll('\b', r'\b') // backspace → \b (\begin, \bmatrix, \beta)
-        .replaceAll('\r', r'\r'); // carriage return → \r (\right, \rho)
-  }
-
   Map<String, dynamic> toMap() {
     return {
       'drill_title': title,
@@ -400,4 +390,14 @@ int? _safeParseInt(dynamic value) {
   if (value is double) return value.toInt();
   if (value is String) return int.tryParse(value);
   return null;
+}
+
+/// JSON decode eats LaTeX backslashes: \frac → formfeed+rac, \times → tab+imes.
+/// This restores control characters back to backslash sequences for LaTeX rendering.
+String _restoreLatex(String text) {
+  return text
+      .replaceAll('\t', r'\t') // tab → \t (\times, \theta, \text, \tan)
+      .replaceAll('\f', r'\f') // formfeed → \f (\frac, \forall)
+      .replaceAll('\b', r'\b') // backspace → \b (\begin, \bmatrix, \beta)
+      .replaceAll('\r', r'\r'); // carriage return → \r (\right, \rho)
 }
