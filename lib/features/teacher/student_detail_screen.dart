@@ -20,6 +20,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   List<_WeakTopicInfo> _weakTopics = [];
   bool _isLoadingRemediation = false;
   bool _loadingTopics = true;
+  final Set<int> _expandedTopics = {};
 
   @override
   void initState() {
@@ -35,9 +36,27 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         'precision': 0.25,
       });
       _weakTopics = [
-        _WeakTopicInfo('Algebraic Expansion', 'Concept Error', 'F2 Ch3'),
-        _WeakTopicInfo('Factorisation', 'Process Error', 'F2 Ch4'),
-        _WeakTopicInfo('Linear Equations', 'Careless Error', 'F1 Ch6'),
+        _WeakTopicInfo(
+          topic: 'Algebraic Expansion',
+          errorType: 'Concept Error',
+          syllabusRef: 'F2 Ch3',
+          reason: 'Did not understand the concept of expanding brackets',
+          action: 'Review Ch 3.2. Practice expanding brackets step by step.',
+        ),
+        _WeakTopicInfo(
+          topic: 'Factorisation',
+          errorType: 'Process Error',
+          syllabusRef: 'F2 Ch4',
+          reason: 'Correct method but made sign errors during factoring',
+          action: 'Review Ch 4.1. Careful with negative signs.',
+        ),
+        _WeakTopicInfo(
+          topic: 'Linear Equations',
+          errorType: 'Careless Error',
+          syllabusRef: 'F1 Ch6',
+          reason: 'Correct approach but arithmetic slip in final step',
+          action: 'Review Ch 6.1. Double-check final calculations.',
+        ),
       ];
       _loadingTopics = false;
     }
@@ -88,7 +107,13 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               GapType.general => 'General',
             };
 
-            topicMap[key] = _WeakTopicInfo(key, gapLabel, syllabusLabel);
+            topicMap[key] = _WeakTopicInfo(
+              topic: key,
+              errorType: gapLabel,
+              syllabusRef: syllabusLabel,
+              reason: w.reason,
+              action: w.action,
+            );
           }
           topicMap[key]!.count++;
         }
@@ -339,79 +364,174 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
       _ => Colors.grey,
     };
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Rank badge
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: errorColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Center(
-              child: Text(
-                "$rank",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: errorColor,
-                  fontSize: 14,
-                ),
-              ),
-            ),
+    final isExpanded = _expandedTopics.contains(rank);
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (isExpanded) {
+            _expandedTopics.remove(rank);
+          } else {
+            _expandedTopics.add(rank);
+          }
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isExpanded ? errorColor.withValues(alpha: 0.03) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isExpanded
+                ? errorColor.withValues(alpha: 0.3)
+                : Colors.grey.withValues(alpha: 0.15),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  info.topic,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: AppColors.textPrimary,
+                // Rank badge
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: errorColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ),
-                if (info.syllabusRef.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    info.syllabusRef,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
+                  child: Center(
+                    child: Text(
+                      "$rank",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: errorColor,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
-                ],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        info.topic,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      if (info.syllabusRef.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          info.syllabusRef,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: errorColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    info.errorType,
+                    style: TextStyle(
+                      color: errorColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: errorColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              info.errorType,
-              style: TextStyle(
-                color: errorColor,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
+            // Expandable reason + action
+            if (isExpanded &&
+                (info.reason.isNotEmpty || info.action.isNotEmpty)) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: errorColor.withValues(alpha: 0.15)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (info.reason.isNotEmpty) ...[
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline, size: 16, color: errorColor),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              info.reason,
+                              style: const TextStyle(fontSize: 13, height: 1.4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (info.reason.isNotEmpty && info.action.isNotEmpty)
+                      const Divider(height: 16),
+                    if (info.action.isNotEmpty) ...[
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.lightbulb_outline,
+                            size: 16,
+                            color: Colors.amber[700],
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              info.action,
+                              style: TextStyle(
+                                fontSize: 13,
+                                height: 1.4,
+                                color: Colors.grey[800],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+            if (!isExpanded &&
+                (info.reason.isNotEmpty || info.action.isNotEmpty))
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 40),
+                child: Text(
+                  "Tap to see reasoning ›",
+                  style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -498,9 +618,17 @@ class _WeakTopicInfo {
   final String topic;
   final String errorType;
   final String syllabusRef;
+  final String reason;
+  final String action;
   int count;
 
-  _WeakTopicInfo(this.topic, this.errorType, this.syllabusRef) : count = 0;
+  _WeakTopicInfo({
+    required this.topic,
+    required this.errorType,
+    required this.syllabusRef,
+    this.reason = '',
+    this.action = '',
+  }) : count = 0;
 }
 
 // ── Pie Chart Painter ──
