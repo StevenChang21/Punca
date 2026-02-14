@@ -319,13 +319,23 @@ class RemediationDrill {
 
     return RemediationDrill(
       title: json['drill_title'] ?? 'Drill',
-      miniLesson: json['mini_lesson'] ?? '',
-      twinQuestion: json['twin_question'] ?? '',
+      miniLesson: _restoreLatex(json['mini_lesson'] ?? ''),
+      twinQuestion: _restoreLatex(json['twin_question'] ?? ''),
       correctAnswer: correctAnswer,
       options: options,
       vocabularyBridge: vocabularyBridge,
       weaknessId: json['weakness_id'] ?? '',
     );
+  }
+
+  /// JSON decode eats LaTeX backslashes: \frac → formfeed+rac, \times → tab+imes.
+  /// This restores control characters back to backslash sequences for LaTeX rendering.
+  static String _restoreLatex(String text) {
+    return text
+        .replaceAll('\t', r'\t') // tab → \t (\times, \theta, \text, \tan)
+        .replaceAll('\f', r'\f') // formfeed → \f (\frac, \forall)
+        .replaceAll('\b', r'\b') // backspace → \b (\begin, \bmatrix, \beta)
+        .replaceAll('\r', r'\r'); // carriage return → \r (\right, \rho)
   }
 
   Map<String, dynamic> toMap() {
