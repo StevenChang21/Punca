@@ -95,7 +95,8 @@ class _RemediationSheetState extends State<RemediationSheet> {
         );
 
         setState(() {
-          _initDrill(hybridDrill);
+          // Swap drill but keep lesson visibility intact
+          _currentDrill = hybridDrill;
           _level = nextLevel;
           _selectedOption = null;
           _isAnswered = false;
