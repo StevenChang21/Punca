@@ -5,6 +5,7 @@ import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/core/constants/kssm_syllabus.dart';
 import 'package:punca_ai/core/services/firebase_service.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
+import 'package:punca_ai/features/student/analysis/widgets/math_display.dart';
 
 class StudentDetailScreen extends StatefulWidget {
   final Map<String, String> student;
@@ -483,9 +484,12 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                           Icon(Icons.info_outline, size: 16, color: errorColor),
                           const SizedBox(width: 6),
                           Expanded(
-                            child: Text(
-                              info.reason,
-                              style: const TextStyle(fontSize: 13, height: 1.4),
+                            child: MixedMathText(
+                              content: info.reason,
+                              textStyle: const TextStyle(
+                                fontSize: 13,
+                                height: 1.4,
+                              ),
                             ),
                           ),
                         ],
@@ -504,9 +508,9 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                           ),
                           const SizedBox(width: 6),
                           Expanded(
-                            child: Text(
-                              info.action,
-                              style: TextStyle(
+                            child: MixedMathText(
+                              content: info.action,
+                              textStyle: TextStyle(
                                 fontSize: 13,
                                 height: 1.4,
                                 color: Colors.grey[800],
