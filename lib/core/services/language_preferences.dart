@@ -76,24 +76,31 @@ class LanguagePreferences {
       case ChineseLevel.mathTerms:
         sb.writeln(
           'CHINESE BRIDGE (Math Terms Only): Add Chinese (中文) translations ONLY for KEY MATH VOCABULARY. '
-          'Put Chinese in parentheses right after the term — e.g. "perimeter (周长)", "luas (面积)", '
-          '"expand (展开)", "simplify (简化)". Do NOT translate non-math words.',
+          'Put Chinese in parentheses right after the term — e.g. "perimeter (周长)", "area (面积)", '
+          '"expand (展开)", "simplify (简化)", "like terms (同类项)", "unlike terms (不同类项)". '
+          'Do NOT translate casual phrases, verbs, or filler words.',
         );
         break;
       case ChineseLevel.termsAndSteps:
         sb.writeln(
-          'CHINESE BRIDGE (Terms + Steps): Add Chinese (中文) translations for MATH VOCABULARY AND '
-          'INSTRUCTIONAL WORDS. Translate math terms AND action words like "calculate (计算)", '
-          '"find (求)", "add (加)", "multiply (乘)". Also translate key nouns like "triangle (三角形)", '
-          '"rectangle (长方形)". Put Chinese in parentheses inline.',
+          'CHINESE BRIDGE (Terms + Steps): Add Chinese (中文) translations for MATH VOCABULARY and '
+          'KEY CONCEPTUAL PHRASES that help understanding. '
+          'PRIORITY 1 — Math terms: "like terms (同类项)", "coefficient (系数)", "expand (展开)". '
+          'PRIORITY 2 — Conceptual phrases: "terms are different (项不同)", "cannot be combined (不能合并)". '
+          'PRIORITY 3 — Math action verbs: "calculate (计算)", "multiply (乘)", "add (加)". '
+          'Do NOT translate filler words like "you", "think of", "it is like", "hey bro".',
         );
         break;
       case ChineseLevel.fullBilingual:
         sb.writeln(
-          'CHINESE BRIDGE (Full Bilingual): Write in a HEAVILY bilingual style. Translate most words '
-          'and phrases into Chinese inline — math terms, instructions, and connecting words. '
-          'Example: "计算 (Calculate) 这个 长方形 (rectangle) 的 周长 (perimeter)：把 (add) 所有的 边 (sides) 加起来". '
-          'The student should be able to understand the lesson even if they only read the Chinese.',
+          'CHINESE BRIDGE (Full Bilingual): Translate GENEROUSLY but SMARTLY. '
+          'ALWAYS translate: math terms, conceptual phrases, instructional verbs, and key nouns. '
+          'Examples: "like terms (同类项)", "cannot be combined (不能合并)", "different (不同)", '
+          '"multiply each term (每一项都要乘)". '
+          'NEVER translate: casual filler ("hey bro", "think of it like"), pronouns ("you", "we"), '
+          'articles, or common connectors ("and", "but", "so"). '
+          'The goal: a student who knows Chinese math vocabulary but struggles with English should '
+          'understand the lesson by reading the Chinese translations alone.',
         );
         break;
       case ChineseLevel.off:
