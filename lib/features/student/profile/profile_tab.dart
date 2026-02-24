@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/core/services/auth_service.dart';
+import 'package:punca_ai/core/services/language_preferences.dart';
 import 'package:punca_ai/features/student/profile/widgets/focus_area_card.dart';
 import 'package:punca_ai/features/student/profile/widgets/mastery_grid.dart';
 import 'package:punca_ai/features/teacher/teacher_scaffold.dart';
@@ -26,6 +27,10 @@ class _ProfileTabState extends State<ProfileTab> {
   Map<String, double?> _masteryData = {}; // Nullable for NA support
   bool _isLoading = false;
   bool _isDemoMode = true; // Default to Demo Mode
+
+  // Language preferences
+  BaseLanguage _baseLanguage = LanguagePreferences.baseLanguage;
+  ChineseLevel _chineseLevel = LanguagePreferences.chineseLevel;
 
   @override
   void initState() {
@@ -222,6 +227,88 @@ class _ProfileTabState extends State<ProfileTab> {
                       _loadData(); // Reload data on change
                     },
                   ),
+                ),
+              ),
+            ),
+          ),
+
+          // ── Language Settings ────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Language / Bahasa',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SegmentedButton<BaseLanguage>(
+                            segments: [
+                              ButtonSegment(
+                                value: BaseLanguage.bm,
+                                label: const Text('BM'),
+                              ),
+                              ButtonSegment(
+                                value: BaseLanguage.dlp,
+                                label: const Text('DLP'),
+                              ),
+                            ],
+                            selected: {_baseLanguage},
+                            onSelectionChanged: (s) {
+                              setState(() => _baseLanguage = s.first);
+                              LanguagePreferences.setBaseLanguage(s.first);
+                            },
+                            style: ButtonStyle(
+                              visualDensity: VisualDensity.compact,
+                              textStyle: WidgetStateProperty.all(
+                                const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Chinese level chips
+                    Wrap(
+                      spacing: 6,
+                      children: ChineseLevel.values
+                          .map(
+                            (level) => ChoiceChip(
+                              label: Text(
+                                LanguagePreferences.chineseLevelLabel(level),
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                              selected: _chineseLevel == level,
+                              onSelected: (_) {
+                                setState(() => _chineseLevel = level);
+                                LanguagePreferences.setChineseLevel(level);
+                              },
+                              visualDensity: VisualDensity.compact,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ],
                 ),
               ),
             ),
