@@ -5,9 +5,7 @@ import 'package:punca_ai/core/services/language_preferences.dart';
 import 'package:punca_ai/features/student/profile/widgets/focus_area_card.dart';
 import 'package:punca_ai/features/student/profile/widgets/mastery_grid.dart';
 import 'package:punca_ai/features/teacher/teacher_scaffold.dart';
-import 'package:punca_ai/core/services/firebase_service.dart'; // Added
-import 'package:punca_ai/core/constants/kssm_syllabus.dart';
-import 'dart:math';
+import 'package:punca_ai/core/services/firebase_service.dart';
 
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
@@ -26,7 +24,6 @@ class _ProfileTabState extends State<ProfileTab> {
   ];
   Map<String, double?> _masteryData = {}; // Nullable for NA support
   bool _isLoading = false;
-  bool _isDemoMode = true; // Default to Demo Mode
 
   // Language preferences
   BaseLanguage _baseLanguage = LanguagePreferences.baseLanguage;
@@ -39,11 +36,7 @@ class _ProfileTabState extends State<ProfileTab> {
   }
 
   Future<void> _loadData() async {
-    if (_isDemoMode) {
-      await _loadMockData();
-    } else {
-      await _loadLiveData();
-    }
+    await _loadLiveData();
   }
 
   Future<void> _loadLiveData() async {
@@ -68,55 +61,6 @@ class _ProfileTabState extends State<ProfileTab> {
     } catch (e) {
       debugPrint("Error loading live data: $e");
       if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _loadMockData() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    Map<String, double?> data = {};
-
-    if (_selectedSubject == "Math") {
-      // Mock Math Data from Syllabus (Form 1 & 2)
-      final random = Random();
-      KssmSyllabus.structure.forEach((form, chapters) {
-        if (form <= 2) {
-          for (var chap in chapters) {
-            final key =
-                "F$form C${chap.id.toString().padLeft(2, '0')}: ${chap.title}";
-            // Random mastery between 0% and 100%, biased towards 30-80%
-            double? mastery;
-            // Simulate that first few chapters are done
-            if (form == 1 && chap.id <= 5) {
-              mastery = 0.5 + (random.nextDouble() * 0.4); // 50-90%
-            } else if (form == 1) {
-              mastery = 0.2 + (random.nextDouble() * 0.4); // 20-60%
-            } else {
-              mastery = null; // Not started (NA)
-            }
-            data[key] = mastery;
-          }
-        }
-      });
-    } else {
-      // Generic mock for other subjects
-      data = {
-        "Chapter 1: Basics": 0.85,
-        "Chapter 2: Intermediate": 0.60,
-        "Chapter 3: Advanced": null, // NA example
-      };
-    }
-
-    if (mounted) {
-      setState(() {
-        _masteryData = data;
-        _isLoading = false;
-      });
     }
   }
 
@@ -166,27 +110,6 @@ class _ProfileTabState extends State<ProfileTab> {
                             ),
                           ),
                         ],
-                      ),
-                    ],
-                  ),
-                  // Demo Toggle
-                  Column(
-                    children: [
-                      Switch(
-                        value: _isDemoMode,
-                        activeColor: AppColors.primary,
-                        onChanged: (val) {
-                          setState(() => _isDemoMode = val);
-                          _loadData();
-                        },
-                      ),
-                      Text(
-                        _isDemoMode ? "DEMO" : "LIVE",
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: _isDemoMode ? AppColors.primary : Colors.grey,
-                        ),
                       ),
                     ],
                   ),
