@@ -254,7 +254,7 @@ class MixedMathText extends StatelessWidget {
 
     // No explicit $...$ delimiters — check for bare LaTeX commands
     final hasBareLaTeX = RegExp(
-      r'\\(frac|sqrt|text|times|div|cdot|pm|mp|leq|geq|neq|approx|alpha|beta|theta|pi|sum|int|lim|log|sin|cos|tan|begin|end|left|right|over)|[\^_]\{',
+      r'\\(frac|sqrt|text|times|div|cdot|pm|mp|leq|geq|neq|approx|alpha|beta|theta|pi|sum|int|lim|log|sin|cos|tan|begin|end|left|right|over)|[\^_][\{0-9a-zA-Z]',
     ).hasMatch(line);
 
     if (hasBareLaTeX) {
