@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
 import 'package:punca_ai/core/services/gemini_service.dart';
-import 'package:punca_ai/core/services/language_preferences.dart';
 import 'package:punca_ai/features/student/analysis/widgets/math_display.dart';
 
 class RemediationSheet extends StatefulWidget {
@@ -47,10 +46,6 @@ class _RemediationSheetState extends State<RemediationSheet> {
 
   final ScrollController _scrollController = ScrollController();
 
-  // Language preferences (local state mirrors SharedPrefs for reactivity)
-  BaseLanguage _baseLanguage = LanguagePreferences.baseLanguage;
-  ChineseLevel _chineseLevel = LanguagePreferences.chineseLevel;
-
   @override
   void initState() {
     super.initState();
@@ -83,11 +78,6 @@ class _RemediationSheetState extends State<RemediationSheet> {
     if (_scrollController.hasClients) {
       _scrollController.jumpTo(0);
     }
-  }
-
-  void _setBaseLanguage(BaseLanguage lang) {
-    setState(() => _baseLanguage = lang);
-    LanguagePreferences.setBaseLanguage(lang);
   }
 
   void _handleOptionSelect(String option) {
@@ -326,52 +316,6 @@ class _RemediationSheetState extends State<RemediationSheet> {
                 ],
               ),
               const SizedBox(height: 16),
-
-              // ── Language Toggle ────────────────────────
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    // Base language chips
-                    ChoiceChip(
-                      label: const Text('BM', style: TextStyle(fontSize: 12)),
-                      selected: _baseLanguage == BaseLanguage.bm,
-                      onSelected: (_) => _setBaseLanguage(BaseLanguage.bm),
-                      visualDensity: VisualDensity.compact,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    const SizedBox(width: 6),
-                    ChoiceChip(
-                      label: const Text('DLP', style: TextStyle(fontSize: 12)),
-                      selected: _baseLanguage == BaseLanguage.dlp,
-                      onSelected: (_) => _setBaseLanguage(BaseLanguage.dlp),
-                      visualDensity: VisualDensity.compact,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    const SizedBox(width: 12),
-                    // Chinese level chips
-                    ...ChineseLevel.values.map(
-                      (level) => Padding(
-                        padding: const EdgeInsets.only(right: 4),
-                        child: ChoiceChip(
-                          label: Text(
-                            LanguagePreferences.chineseLevelLabel(level),
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                          selected: _chineseLevel == level,
-                          onSelected: (_) {
-                            setState(() => _chineseLevel = level);
-                            LanguagePreferences.setChineseLevel(level);
-                          },
-                          visualDensity: VisualDensity.compact,
-                          materialTapTargetSize:
-                              MaterialTapTargetSize.shrinkWrap,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
 
               // Mini Lesson Text (Progressive)
               if (_lessonChunks.isNotEmpty) ...[
