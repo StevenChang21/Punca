@@ -193,8 +193,12 @@ class Weakness {
     }
 
     // Fallback: If no instances but legacy fields exist, create one instance
-    final legacyMistake = json['mistake_example']?.toString() ?? '';
-    final legacyCorrection = json['correction_example']?.toString() ?? '';
+    final legacyMistake = _restoreLatex(
+      json['mistake_example']?.toString() ?? '',
+    );
+    final legacyCorrection = _restoreLatex(
+      json['correction_example']?.toString() ?? '',
+    );
 
     if (parsedInstances.isEmpty &&
         (legacyMistake.isNotEmpty || legacyCorrection.isNotEmpty)) {

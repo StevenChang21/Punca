@@ -252,6 +252,22 @@ class MixedMathText extends StatelessWidget {
       );
     }
 
+    // No explicit $...$ delimiters — check for bare LaTeX commands
+    final hasBareLaTeX = RegExp(
+      r'\\(frac|sqrt|text|times|div|cdot|pm|mp|leq|geq|neq|approx|alpha|beta|theta|pi|sum|int|lim|log|sin|cos|tan|begin|end|left|right|over)|[\^_]\{',
+    ).hasMatch(line);
+
+    if (hasBareLaTeX) {
+      // Treat entire line as math
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Math.tex(
+          line,
+          textStyle: textStyle ?? const TextStyle(fontSize: 16),
+        ),
+      );
+    }
+
     // No explicit $...$ delimiters — handle **bold** and render as text
     return _buildTextWithBold(line);
   }
