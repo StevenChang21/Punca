@@ -66,6 +66,7 @@ class _StudentDashboardState extends State<StudentDashboard> {
   }
 
   void _loadData() {
+    if (!mounted) return;
     setState(() {
       final uid = AuthService().currentUser?.uid;
       debugPrint("Dashboard querying for studentId: $uid");
