@@ -8,8 +8,9 @@ class FocusAreaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (masteryData.isEmpty)
+    if (masteryData.isEmpty) {
       return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
 
     // Find topic with lowest mastery
     var lowestTopic = masteryData.keys.first;

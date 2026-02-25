@@ -103,7 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _selectedRole,
+              initialValue: _selectedRole,
               dropdownColor: Colors.grey[900],
               items: ['Student', 'Teacher']
                   .map(

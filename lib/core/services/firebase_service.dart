@@ -340,9 +340,9 @@ class FirebaseService {
         final data = doc.data() as Map<String, dynamic>;
         final gapType = data['gap_type']?.toString().toLowerCase() ?? 'general';
 
-        if (gapType == 'foundation')
+        if (gapType == 'foundation') {
           foundation++;
-        else if (gapType == 'execution')
+        } else if (gapType == 'execution')
           execution++;
         else if (gapType == 'precision')
           precision++;
@@ -352,8 +352,9 @@ class FirebaseService {
         total++;
       }
 
-      if (total == 0)
+      if (total == 0) {
         return {'foundation': 0.33, 'execution': 0.33, 'precision': 0.34};
+      }
 
       return {
         'foundation': foundation / total,

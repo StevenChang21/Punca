@@ -116,7 +116,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             if (_selectedRole == 'Student') ...[
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: _selectedForm,
+                initialValue: _selectedForm,
                 dropdownColor: Colors.grey[900],
                 items: ['Form 1', 'Form 2', 'Form 3', 'Form 4', 'Form 5']
                     .map(
