@@ -8,7 +8,7 @@ class RemediationSheet extends StatefulWidget {
   final RemediationDrill drill;
   final Weakness weakness;
   final VoidCallback onMorePractice;
-  final ValueChanged<RemediationDrill>? onDrillUpdated;
+  final ValueChanged<List<RemediationDrill>>? onDrillUpdated;
   final List<RemediationDrill> drillHistory;
 
   const RemediationSheet({
@@ -131,8 +131,8 @@ class _RemediationSheetState extends State<RemediationSheet> {
           _isLoading = false;
         });
 
-        // Persist the updated drill
-        widget.onDrillUpdated?.call(hybridDrill);
+        // Persist the full drill history
+        widget.onDrillUpdated?.call(List.from(_drillHistory));
 
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
@@ -201,12 +201,20 @@ class _RemediationSheetState extends State<RemediationSheet> {
       if (mounted) {
         if (newDrill != null) {
           setState(() {
+            _drillHistory.clear();
+            _drillHistory.add(newDrill);
             _initDrill(newDrill);
             _level = 0;
+            _viewingLevel = 0;
             _selectedOption = null;
             _isAnswered = false;
+            _selectedOptions.clear();
+            _answeredLevels.clear();
             _isLoading = false;
           });
+
+          // Persist regenerated drill to Firestore
+          widget.onDrillUpdated?.call(List.from(_drillHistory));
         } else {
           setState(() => _isLoading = false);
           ScaffoldMessenger.of(context).showSnackBar(

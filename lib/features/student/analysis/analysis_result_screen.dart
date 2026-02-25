@@ -59,9 +59,12 @@ class AnalysisResultScreen extends StatelessWidget {
             weakness: weakness,
             drillHistory: allDrills,
             onMorePractice: () {},
-            onDrillUpdated: (updatedDrill) {
-              // Append the new challenge drill (don't replace)
-              result.remediationDrills.add(updatedDrill);
+            onDrillUpdated: (updatedDrills) {
+              // Replace all drills for this weakness with the updated history
+              result.remediationDrills.removeWhere(
+                (d) => d.weaknessId == weakness.id,
+              );
+              result.remediationDrills.addAll(updatedDrills);
               FirebaseService().updateAssessment(result);
             },
           ),
