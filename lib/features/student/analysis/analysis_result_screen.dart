@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/features/student/analysis/roadmap_screen.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'dart:io';
 
 import 'package:punca_ai/features/student/analysis/remediation_sheet.dart';
@@ -174,12 +175,15 @@ class AnalysisResultScreen extends StatelessWidget {
   }
 
   void _showImages(BuildContext context, List<String> paths) {
+    // Check if any path is a PDF
+    final bool hasPdf = paths.any((p) => p.toLowerCase().endsWith('.pdf'));
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
         insetPadding: const EdgeInsets.all(12),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: hasPdf ? MainAxisSize.max : MainAxisSize.min,
           children: [
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -187,7 +191,7 @@ class AnalysisResultScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    "Original Work (${paths.length} pages)",
+                    "Original Work (${paths.length} ${hasPdf ? 'file' : 'pages'})",
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   IconButton(
@@ -197,25 +201,49 @@ class AnalysisResultScreen extends StatelessWidget {
                 ],
               ),
             ),
-            SizedBox(
-              height: 400,
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: paths.length,
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.file(File(paths[index])),
+            Expanded(
+              child: hasPdf
+                  ? _buildPdfViewer(paths.first)
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: paths.length,
+                      itemBuilder: (context, index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: _buildImageWidget(paths[index]),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildPdfViewer(String path) {
+    if (path.startsWith('http')) {
+      // Network PDF — show a message (would need download first)
+      return const Center(
+        child: Text('PDF preview not available for cloud files'),
+      );
+    }
+    return PDFView(
+      filePath: path,
+      enableSwipe: true,
+      swipeHorizontal: true,
+      autoSpacing: true,
+      pageFling: true,
+    );
+  }
+
+  Widget _buildImageWidget(String path) {
+    if (path.startsWith('http')) {
+      return Image.network(path, fit: BoxFit.contain);
+    }
+    return Image.file(File(path), fit: BoxFit.contain);
   }
 }
