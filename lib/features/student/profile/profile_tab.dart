@@ -4,7 +4,7 @@ import 'package:punca_ai/core/services/auth_service.dart';
 import 'package:punca_ai/core/services/language_preferences.dart';
 import 'package:punca_ai/features/student/profile/widgets/focus_area_card.dart';
 import 'package:punca_ai/features/student/profile/widgets/mastery_grid.dart';
-import 'package:punca_ai/features/teacher/teacher_scaffold.dart';
+
 import 'package:punca_ai/core/services/firebase_service.dart';
 
 class ProfileTab extends StatefulWidget {
@@ -305,24 +305,7 @@ class _ProfileTabState extends State<ProfileTab> {
                 children: [
                   const Divider(),
                   const SizedBox(height: 10),
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const TeacherScaffold(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.school_outlined),
-                    label: const Text("Demo: Switch to Teacher View"),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary),
-                      minimumSize: const Size(double.infinity, 50),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+
                   ElevatedButton(
                     onPressed: () {
                       AuthService().signOut();
