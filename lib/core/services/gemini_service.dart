@@ -3,6 +3,7 @@ import 'package:punca_ai/config/secrets.dart';
 import 'package:punca_ai/core/constants/kssm_syllabus.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:punca_ai/core/services/language_preferences.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
@@ -187,6 +188,7 @@ class GeminiService {
       2. TONE: Explain like a friendly big brother. Use ANALOGIES or VISUAL EXAMPLES. Avoid textbook jargon.
       3. CONSISTENCY: The Analogy AND Example MUST match the student's specific gap. If the error is in Expansion, do NOT explain Factorisation.
       4. LENGTH: Keep it short and punchy.
+      ${LanguagePreferences.promptInstruction}
 
       CONTEXT:
       Topic: ${weakness.topic}
@@ -257,6 +259,7 @@ class GeminiService {
     3. LEVEL 2: Change the CONTEXT or add a small twist (e.g. "Try solving this backwards" or "Word problem style").
     4. Do NOT generate a mini lesson. The original lesson will be kept.
     5. Strict KSSM methods apply. Wrap math in '\$' delimiters.
+    ${LanguagePreferences.promptInstruction}
 
     OUTPUT FORMAT (JSON ONLY):
     {
