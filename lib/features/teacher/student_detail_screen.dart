@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/core/constants/kssm_syllabus.dart';
 import 'package:punca_ai/core/services/firebase_service.dart';
+import 'package:punca_ai/core/services/gemini_service.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
 import 'package:punca_ai/features/student/analysis/widgets/math_display.dart';
+import 'package:punca_ai/features/teacher/remediation_preview_screen.dart';
 import 'package:punca_ai/shared/widgets/work_viewer_dialog.dart';
 
 class StudentDetailScreen extends StatefulWidget {
@@ -602,18 +604,72 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: () {
+            onPressed: () async {
               setState(() => _isLoadingRemediation = true);
-              Future.delayed(const Duration(seconds: 2), () {
-                if (context.mounted) {
+              try {
+                if (_weakTopics.isEmpty) {
                   setState(() => _isLoadingRemediation = false);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text("Targeted Remediation Pack Assigned!"),
+                      content: Text("No weakness data to assign."),
                     ),
                   );
+                  return;
                 }
-              });
+
+                final targetTopic = _weakTopics.first;
+
+                GapType mapErrorTypeToGapType(String error) {
+                  switch (error) {
+                    case 'Concept Error':
+                      return GapType.foundation;
+                    case 'Process Error':
+                      return GapType.execution;
+                    case 'Careless Error':
+                      return GapType.precision;
+                    default:
+                      return GapType.general;
+                  }
+                }
+
+                final dummyWeakness = Weakness(
+                  topic: targetTopic.topic,
+                  reason: targetTopic.reason,
+                  action: targetTopic.action,
+                  gapType: mapErrorTypeToGapType(targetTopic.errorType),
+                );
+
+                final drill = await GeminiService().generateRemediation(
+                  dummyWeakness,
+                );
+
+                if (!context.mounted) return;
+                setState(() => _isLoadingRemediation = false);
+
+                if (drill != null) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => RemediationPreviewScreen(
+                        student: widget.student,
+                        topic: targetTopic.topic,
+                        initialDrill: drill,
+                        classroomId: widget.student['classroomId'],
+                      ),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Failed to generate pack.")),
+                  );
+                }
+              } catch (e) {
+                if (!context.mounted) return;
+                setState(() => _isLoadingRemediation = false);
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text("Error: $e")));
+              }
             },
             icon: _isLoadingRemediation
                 ? const SizedBox(

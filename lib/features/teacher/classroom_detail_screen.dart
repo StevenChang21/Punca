@@ -541,9 +541,10 @@ class _ClassroomDetailScreenState extends State<ClassroomDetailScreen> {
                   builder: (context) => StudentDetailScreen(
                     student: {
                       'name': name,
-                      'id': student['uid'],
+                      'id': student['uid'].toString(),
                       'issue': form.isNotEmpty ? form : 'Student',
                       'score': 'N/A',
+                      'classroomId': widget.classroom['id']?.toString() ?? '',
                     },
                   ),
                 ),
