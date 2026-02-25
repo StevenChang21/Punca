@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/core/services/auth_service.dart';
 import 'package:punca_ai/core/services/firebase_service.dart';
+import 'package:punca_ai/core/models/assignment_model.dart';
+import 'package:punca_ai/features/student/classroom/assignment_solve_screen.dart';
 
 /// Detail page for a student's enrolled classroom.
 /// Shows class info, classmates, homework placeholder, and a subtle Leave button.
@@ -18,21 +20,40 @@ class StudentClassroomDetailScreen extends StatefulWidget {
 class _StudentClassroomDetailScreenState
     extends State<StudentClassroomDetailScreen> {
   List<Map<String, dynamic>> _members = [];
-  bool _loading = true;
+  bool _loadingMembers = true;
+
+  List<Assignment> _assignments = [];
+  bool _loadingAssignments = true;
 
   @override
   void initState() {
     super.initState();
-    _loadMembers();
+    _loadData();
   }
 
-  Future<void> _loadMembers() async {
+  Future<void> _loadData() async {
     final classroomId = widget.classroom['id'] as String;
-    final members = await FirebaseService().getClassroomMembers(classroomId);
+    final studentId = AuthService().currentUser?.uid;
+
+    final membersFut = FirebaseService().getClassroomMembers(classroomId);
+
+    Future<List<Assignment>> assignmentsFut = Future.value([]);
+    if (studentId != null) {
+      assignmentsFut = FirebaseService().getAssignmentsForStudent(
+        studentId,
+        classroomId: classroomId,
+      );
+    }
+
+    final results = await Future.wait([membersFut, assignmentsFut]);
+
     if (mounted) {
       setState(() {
-        _members = members;
-        _loading = false;
+        _members = results[0] as List<Map<String, dynamic>>;
+        _loadingMembers = false;
+
+        _assignments = results[1] as List<Assignment>;
+        _loadingAssignments = false;
       });
     }
   }
@@ -119,7 +140,7 @@ class _StudentClassroomDetailScreenState
               ),
             ),
             const SizedBox(height: 12),
-            _loading
+            _loadingMembers
                 ? const Center(
                     child: Padding(
                       padding: EdgeInsets.all(20),
@@ -191,7 +212,7 @@ class _StudentClassroomDetailScreenState
 
             const SizedBox(height: 28),
 
-            // Homework Section (placeholder)
+            // Homework Section
             const Text(
               "Homework",
               style: TextStyle(
@@ -201,28 +222,160 @@ class _StudentClassroomDetailScreenState
               ),
             ),
             const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.assignment_outlined,
-                    size: 40,
-                    color: Colors.grey[300],
+            _loadingAssignments
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: CircularProgressIndicator(),
+                    ),
+                  )
+                : _assignments.isEmpty
+                ? Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.assignment_outlined,
+                          size: 40,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "No homework assigned yet",
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _assignments.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final hw = _assignments[index];
+                      final isCompleted = hw.status == 'completed';
+                      return InkWell(
+                        onTap: () async {
+                          if (isCompleted) return;
+
+                          // Navigate to Solve Screen
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  AssignmentSolveScreen(assignment: hw),
+                            ),
+                          );
+                          // Reload after returning just in case they finished it
+                          _loadData();
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: isCompleted
+                                ? Colors.white.withOpacity(0.6)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isCompleted
+                                  ? Colors.grey.withOpacity(0.2)
+                                  : AppColors.primary.withOpacity(0.3),
+                            ),
+                            boxShadow: isCompleted
+                                ? []
+                                : [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.02),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: isCompleted
+                                      ? Colors.grey[100]
+                                      : AppColors.primary.withOpacity(0.1),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  isCompleted
+                                      ? Icons.check_circle
+                                      : Icons.assignment,
+                                  color: isCompleted
+                                      ? Colors.green
+                                      : AppColors.primary,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      hw.remediationDrill.title,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: isCompleted
+                                            ? Colors.grey[600]
+                                            : AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      hw.topic,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey[500],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (isCompleted && hw.score != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    "${hw.score}%",
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.green,
+                                    ),
+                                  ),
+                                )
+                              else if (!isCompleted)
+                                const Icon(
+                                  Icons.chevron_right,
+                                  color: Colors.grey,
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "No homework assigned yet",
-                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
 
             const SizedBox(height: 40),
 

@@ -13,6 +13,7 @@ class QuizOptions extends StatelessWidget {
   final ValueChanged<String> onOptionSelect;
   final VoidCallback onChallenge;
   final VoidCallback onDone;
+  final bool hideActionButtons;
 
   const QuizOptions({
     super.key,
@@ -26,6 +27,7 @@ class QuizOptions extends StatelessWidget {
     required this.onOptionSelect,
     required this.onChallenge,
     required this.onDone,
+    this.hideActionButtons = false,
   });
 
   @override
@@ -120,35 +122,37 @@ class QuizOptions extends StatelessWidget {
 
         const SizedBox(height: 12),
 
-        // Action Buttons
-        if (isAnswered && level < 2 && !isLoading && viewingLevel == level)
-          ElevatedButton.icon(
-            onPressed: onChallenge,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+        if (!hideActionButtons) ...[
+          // Action Buttons
+          if (isAnswered && level < 2 && !isLoading && viewingLevel == level)
+            ElevatedButton.icon(
+              onPressed: onChallenge,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
+              icon: const Icon(Icons.bolt),
+              label: const Text("Challenge Me! (Harder)"),
             ),
-            icon: const Icon(Icons.bolt),
-            label: const Text("Challenge Me! (Harder)"),
-          ),
 
-        if ((isAnswered && level == 2) || (isAnswered && isLoading))
-          ElevatedButton(
-            onPressed: onDone,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          if ((isAnswered && level == 2) || (isAnswered && isLoading))
+            ElevatedButton(
+              onPressed: onDone,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
+              child: const Text("Great Work! Done."),
             ),
-            child: const Text("Great Work! Done."),
-          ),
+        ],
       ],
     );
   }
