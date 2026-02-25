@@ -83,12 +83,13 @@ class LanguagePreferences {
         break;
       case ChineseLevel.termsAndSteps:
         sb.writeln(
-          'CHINESE BRIDGE (Terms + Steps): Add Chinese (中文) translations for MATH VOCABULARY and '
-          'KEY CONCEPTUAL PHRASES that help understanding. '
-          'PRIORITY 1 — Math terms: "like terms (同类项)", "coefficient (系数)", "expand (展开)". '
-          'PRIORITY 2 — Conceptual phrases: "terms are different (项不同)", "cannot be combined (不能合并)". '
-          'PRIORITY 3 — Math action verbs: "calculate (计算)", "multiply (乘)", "add (加)". '
-          'Do NOT translate filler words like "you", "think of", "it is like", "hey bro".',
+          'CHINESE BRIDGE (Terms + Steps): You MUST add Chinese (中文) translations in parentheses '
+          'for ALL of the following categories: '
+          '1. Math terms — e.g. "like terms (同类项)", "coefficient (系数)", "expand (展开)", "simplify (简化)". '
+          '2. Conceptual phrases — e.g. "terms are different (项不同)", "cannot be combined (不能合并)". '
+          '3. Math action verbs — e.g. "calculate (计算)", "multiply (乘)", "add (加)", "find (求)". '
+          'Do NOT translate casual words like "hey", "bro", "think of", "you". '
+          'Every sentence MUST have at least one Chinese translation.',
         );
         break;
       case ChineseLevel.fullBilingual:
