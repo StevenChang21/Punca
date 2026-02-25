@@ -50,6 +50,7 @@ dependencies:
   file_picker: ^10.3.10
   flutter_svg: ^2.2.3
   shared_preferences: ^2.5.4
+  flutter_pdfview: ^1.4.4
 
 dev_dependencies:
   flutter_test:
