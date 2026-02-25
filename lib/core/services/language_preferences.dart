@@ -99,15 +99,15 @@ class LanguagePreferences {
         break;
       case ChineseLevel.fullBilingual:
         sb.writeln(
-          'CHINESE BRIDGE (Full Bilingual): You MUST add Chinese (中文) translations for ALMOST EVERY '
-          'meaningful word. Translate aggressively — math terms, concepts, verbs, nouns, and descriptions. '
-          '${isBM ? 'Examples: "sebutan (项)", "kuasa dua sempurna (完全平方)", "tanda tolak (减号)", '
-                    '"kembangkan (展开)", "permudahkan (简化)", "darab (乘)", "tambah (加)", '
-                    '"tidak boleh (不能)", "kena guna (必须用)", "tukarkan (转换)", "cara betul (正确方法)". ' : 'Examples: "terms (项)", "perfect square (完全平方)", "minus sign (减号)", '
-                    '"expand (展开)", "simplify (简化)", "multiply (乘)", "add (加)", '
-                    '"cannot (不能)", "must use (必须用)", "convert (转换)", "correct method (正确方法)". '}'
-          'ONLY skip: "hey bro", "eh", pronouns, and simple connectors like "and/dan", "but/tapi". '
-          'Target: at least 3-5 Chinese translations per sentence.',
+          'CHINESE BRIDGE (Full Bilingual): After each sentence or clause, add a FULL Chinese translation '
+          'on the same line in parentheses. Do NOT translate word-by-word inline — instead, translate the '
+          'entire sentence/clause as one unit so the Chinese reads naturally with correct Chinese grammar. '
+          '${isBM ? 'Example: "Kalau nampak dua sebutan kuasa dua yang ditolak, kita kena guna formula Beza Antara '
+                    'Dua Kuasa Dua. (如果看到两个平方项相减，我们必须用"平方差"公式。)"' : 'Example: "When you see two squared terms being subtracted, you must use the Difference of '
+                    'Two Squares formula. (如果看到两个平方项相减，你必须用"平方差"公式。)"'} '
+          'Keep key math terms with inline translations too — e.g. '
+          '${isBM ? '"kuasa dua (平方)"' : '"square (平方)"'}, '
+          '${isBM ? '"kembangkan (展开)"' : '"expand (展开)"'}.',
         );
         break;
       case ChineseLevel.off:
