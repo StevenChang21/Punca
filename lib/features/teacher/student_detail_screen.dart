@@ -6,6 +6,7 @@ import 'package:punca_ai/core/constants/kssm_syllabus.dart';
 import 'package:punca_ai/core/services/firebase_service.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
 import 'package:punca_ai/features/student/analysis/widgets/math_display.dart';
+import 'package:punca_ai/shared/widgets/work_viewer_dialog.dart';
 
 class StudentDetailScreen extends StatefulWidget {
   final Map<String, String> student;
@@ -114,6 +115,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               syllabusRef: syllabusLabel,
               reason: w.reason,
               action: w.action,
+              imageUrls: List<String>.from(a.imageUrls),
             );
           }
           topicMap[key]!.count++;
@@ -525,6 +527,33 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                 ),
               ),
             ],
+            // View Work button
+            if (isExpanded && info.imageUrls.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 40),
+                  child: TextButton.icon(
+                    onPressed: () =>
+                        showWorkViewerDialog(context, info.imageUrls),
+                    icon: const Icon(Icons.image_outlined, size: 16),
+                    label: const Text('View Student Work'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
             if (!isExpanded &&
                 (info.reason.isNotEmpty || info.action.isNotEmpty))
               Padding(
@@ -624,6 +653,7 @@ class _WeakTopicInfo {
   final String syllabusRef;
   final String reason;
   final String action;
+  final List<String> imageUrls;
   int count;
 
   _WeakTopicInfo({
@@ -632,6 +662,7 @@ class _WeakTopicInfo {
     required this.syllabusRef,
     this.reason = '',
     this.action = '',
+    this.imageUrls = const [],
   }) : count = 0;
 }
 
