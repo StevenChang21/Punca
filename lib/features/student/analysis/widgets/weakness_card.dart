@@ -266,9 +266,9 @@ class WeaknessCard extends StatelessWidget {
                 ),
               ),
               children: [
-                Text(
-                  weakness.reason,
-                  style: const TextStyle(
+                MixedMathText(
+                  content: weakness.reason,
+                  textStyle: const TextStyle(
                     color: AppColors.textSecondary,
                     height: 1.4,
                   ),

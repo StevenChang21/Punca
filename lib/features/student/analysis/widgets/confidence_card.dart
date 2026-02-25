@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
+import 'package:punca_ai/features/student/analysis/widgets/math_display.dart';
 
 class ConfidenceCard extends StatelessWidget {
   final String message;
@@ -37,7 +38,10 @@ class ConfidenceCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Text(message, style: const TextStyle(fontSize: 15, height: 1.4)),
+          MixedMathText(
+            content: message,
+            textStyle: const TextStyle(fontSize: 15, height: 1.4),
+          ),
         ],
       ),
     );
