@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
+import 'package:punca_ai/core/models/assignment_model.dart';
 import 'package:punca_ai/core/constants/kssm_syllabus.dart';
 import 'package:punca_ai/core/models/syllabus_model.dart';
 import 'package:flutter/foundation.dart';
@@ -15,6 +16,7 @@ class FirebaseService {
   // CollectionReference get _users => _firestore.collection('users'); // Unused
   CollectionReference get _assessments => _firestore.collection('assessments');
   CollectionReference get _weaknesses => _firestore.collection('weaknesses');
+  CollectionReference get _assignments => _firestore.collection('assignments');
 
   /// Uploads a file to Firebase Storage and returns the download URL
   Future<String?> uploadImage(String filePath, String fileName) async {
@@ -397,6 +399,63 @@ class FirebaseService {
     } catch (e) {
       debugPrint("Error getting weakness count: $e");
       return 0;
+    }
+  }
+
+  // ── Assignment Methods ──
+
+  /// Create a new assignment for a student.
+  Future<String> createAssignment(Assignment assignment) async {
+    try {
+      final docRef = await _assignments.add(assignment.toMap());
+      debugPrint("Assignment created with ID: ${docRef.id}");
+      return docRef.id;
+    } catch (e) {
+      debugPrint('Error saving assignment: $e');
+      rethrow;
+    }
+  }
+
+  /// Get pending and completed assignments for a student
+  Future<List<Assignment>> getAssignmentsForStudent(
+    String studentId, {
+    String? classroomId,
+  }) async {
+    try {
+      var query = _assignments
+          .where('studentId', isEqualTo: studentId)
+          .orderBy('assignedDate', descending: true);
+
+      if (classroomId != null) {
+        query = query.where('classroomId', isEqualTo: classroomId);
+      }
+
+      final snapshot = await query.get();
+      return snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return Assignment.fromMap(data, doc.id);
+      }).toList();
+    } catch (e) {
+      debugPrint("Error getting student assignments: $e");
+      return [];
+    }
+  }
+
+  /// Update assignment status and score
+  Future<void> updateAssignmentStatus(
+    String assignmentId,
+    String status,
+    int? score,
+  ) async {
+    try {
+      await _assignments.doc(assignmentId).update({
+        'status': status,
+        if (score != null) 'score': score,
+      });
+      debugPrint("Assignment status updated: $assignmentId -> $status");
+    } catch (e) {
+      debugPrint("Error updating assignment status: $e");
+      rethrow;
     }
   }
 
