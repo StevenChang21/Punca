@@ -4,6 +4,7 @@ import 'package:punca_ai/core/models/assessment_model.dart';
 import 'package:punca_ai/core/constants/kssm_syllabus.dart';
 import 'package:punca_ai/core/models/syllabus_model.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:io';
 
 /* id: 3 */
 class FirebaseService {
@@ -15,15 +16,19 @@ class FirebaseService {
   CollectionReference get _assessments => _firestore.collection('assessments');
   CollectionReference get _weaknesses => _firestore.collection('weaknesses');
 
-  /// "Uploads" an image (Simulated: Returns local path)
+  /// Uploads a file to Firebase Storage and returns the download URL
   Future<String?> uploadImage(String filePath, String fileName) async {
-    // We are skipping Firebase Storage to avoid billing requirements.
-    // Instead, we just return the local file path.
-    // In a production app, you would upload this to a server.
-
-    FirebaseStorage.instance.ref().child(filePath + fileName);
-    debugPrint("Using local file path for: $fileName");
-    return filePath;
+    try {
+      final ref = FirebaseStorage.instance.ref().child(fileName);
+      await ref.putFile(File(filePath));
+      final url = await ref.getDownloadURL();
+      debugPrint("Uploaded to Firebase Storage: $fileName");
+      return url;
+    } catch (e) {
+      debugPrint("Firebase Storage upload failed: $e");
+      // Fallback to local path so the app still works without Storage
+      return filePath;
+    }
   }
 
   /// Saves the assessment result to Firestore and returns the document ID
