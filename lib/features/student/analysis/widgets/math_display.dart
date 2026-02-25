@@ -161,112 +161,71 @@ class MixedMathText extends StatelessWidget {
 
     // Check if line contains explicit delimiters
     if (exp.hasMatch(line)) {
-      return LayoutBuilder(
-        builder: (context, constraints) {
-          List<Widget> spans = [];
+      final baseStyle = textStyle ?? Theme.of(context).textTheme.bodyMedium!;
+      final defaultStyle = baseStyle.color == null
+          ? baseStyle.copyWith(color: AppColors.textPrimary)
+          : baseStyle;
 
-          line.splitMapJoin(
-            exp,
-            onMatch: (m) {
-              final mathContent = m.group(1) ?? '';
-              // Removed manual sanitization as per user request.
-              // Letting the library handle pure LaTeX.
+      List<InlineSpan> inlineSpans = [];
 
-              // Wrap math in a scrollable container to prevent overflow
-              spans.add(
-                Container(
-                  constraints: BoxConstraints(maxWidth: constraints.maxWidth),
-                  padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Math.tex(
-                      mathContent,
-                      textStyle:
-                          textStyle ??
-                          const TextStyle(
-                            fontSize: 16,
-                            color: AppColors.textPrimary,
-                          ),
-                      mathStyle: MathStyle.text,
-                      onErrorFallback: (err) => Text(
-                        '\$$mathContent\$',
-                        style: (textStyle ?? const TextStyle()).copyWith(
-                          color: Colors.red,
-                        ),
-                      ),
-                    ),
+      line.splitMapJoin(
+        exp,
+        onMatch: (m) {
+          final mathContent = m.group(1) ?? '';
+
+          // Use WidgetSpan so the math widget flows inline with text
+          inlineSpans.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                child: Math.tex(
+                  mathContent,
+                  textStyle: defaultStyle,
+                  mathStyle: MathStyle.text,
+                  onErrorFallback: (err) => Text(
+                    '\$$mathContent\$',
+                    style: defaultStyle.copyWith(color: Colors.red),
                   ),
+                ),
+              ),
+            ),
+          );
+          return '';
+        },
+        onNonMatch: (text) {
+          if (text.isEmpty) return '';
+
+          // Handle **bold** markdown
+          final RegExp boldExp = RegExp(r'\*\*(.*?)\*\*');
+          text.splitMapJoin(
+            boldExp,
+            onMatch: (m) {
+              final boldText = m.group(1) ?? '';
+              inlineSpans.add(
+                TextSpan(
+                  text: boldText,
+                  style: defaultStyle.copyWith(fontWeight: FontWeight.bold),
                 ),
               );
               return '';
             },
-            onNonMatch: (text) {
-              if (text.isEmpty) return '';
-
-              // Handle **bold** markdown
-              final RegExp boldExp = RegExp(r'\*\*(.*?)\*\*');
-              text.splitMapJoin(
-                boldExp,
-                onMatch: (m) {
-                  final boldText = m.group(1) ?? '';
-                  spans.add(
-                    Text(
-                      boldText,
-                      style:
-                          (textStyle ??
-                                  const TextStyle(
-                                    fontSize: 16,
-                                    color: AppColors.textPrimary,
-                                  ))
-                              .copyWith(fontWeight: FontWeight.bold),
-                    ),
-                  );
-                  return '';
-                },
-                onNonMatch: (n) {
-                  if (n.isNotEmpty) {
-                    spans.add(
-                      Text(
-                        n,
-                        style:
-                            textStyle ??
-                            const TextStyle(
-                              fontSize: 16,
-                              color: AppColors.textPrimary,
-                            ),
-                      ),
-                    );
-                  }
-                  return '';
-                },
-              );
+            onNonMatch: (n) {
+              if (n.isNotEmpty) {
+                inlineSpans.add(TextSpan(text: n, style: defaultStyle));
+              }
               return '';
             },
           );
-
-          return Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: spans,
-          );
+          return '';
         },
       );
+
+      return RichText(text: TextSpan(children: inlineSpans));
     }
 
-    // No explicit $...$ delimiters — check for bare LaTeX commands
-    final hasBareLaTeX = RegExp(
-      r'\\(frac|sqrt|text|times|div|cdot|pm|mp|leq|geq|neq|approx|alpha|beta|theta|pi|sum|int|lim|log|sin|cos|tan|begin|end|left|right|over)|[\^_][\{0-9a-zA-Z]',
-    ).hasMatch(line);
-
-    if (hasBareLaTeX) {
-      // Treat entire line as math
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Math.tex(
-          line,
-          textStyle: textStyle ?? const TextStyle(fontSize: 16),
-        ),
-      );
-    }
+    // No explicit $...$ delimiters — render as plain text
+    // (The AI prompt instructs wrapping math in $, so bare LaTeX shouldn't happen)
 
     // No explicit $...$ delimiters — handle **bold** and render as text
     return _buildTextWithBold(line);

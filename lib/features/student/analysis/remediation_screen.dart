@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
+import 'package:punca_ai/features/student/analysis/widgets/math_display.dart';
 
 class RemediationScreen extends StatefulWidget {
   final List<RemediationDrill> drills;
@@ -176,10 +177,9 @@ class _LessonCard extends StatelessWidget {
                 ),
               ],
             ),
-            child: Text(
-              drill.miniLesson,
-              style: const TextStyle(fontSize: 18, height: 1.5),
-              textAlign: TextAlign.center,
+            child: MixedMathText(
+              content: drill.miniLesson,
+              textStyle: const TextStyle(fontSize: 18, height: 1.5),
             ),
           ),
           const Spacer(),
