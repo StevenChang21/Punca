@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:punca_ai/config/app_theme.dart';
 import 'package:punca_ai/core/models/assessment_model.dart';
 import 'package:punca_ai/core/services/gemini_service.dart';
-import 'package:punca_ai/features/student/analysis/widgets/math_display.dart';
+import 'package:punca_ai/features/student/analysis/widgets/lesson_section.dart';
+import 'package:punca_ai/features/student/analysis/widgets/question_section.dart';
+import 'package:punca_ai/features/student/analysis/widgets/quiz_options.dart';
+import 'package:punca_ai/features/student/analysis/widgets/level_navigation.dart';
 
 class RemediationSheet extends StatefulWidget {
   final RemediationDrill drill;
@@ -325,286 +328,65 @@ class _RemediationSheetState extends State<RemediationSheet> {
               ),
               const SizedBox(height: 16),
 
-              // Mini Lesson Text (Progressive)
+              // Mini Lesson (Progressive)
+              LessonSection(
+                lessonChunks: _lessonChunks,
+                visibleChunkCount: _visibleChunkCount,
+                isLessonComplete: isLessonComplete,
+                practiceStarted: _practiceStarted,
+                onShowNextChunk: _showNextChunk,
+                onStartPractice: () {
+                  setState(() => _practiceStarted = true);
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (_scrollController.hasClients) {
+                      _scrollController.animateTo(
+                        _scrollController.position.maxScrollExtent,
+                        duration: const Duration(milliseconds: 500),
+                        curve: Curves.easeOut,
+                      );
+                    }
+                  });
+                },
+                isLoading: _isLoading,
+              ),
+
               if (_lessonChunks.isNotEmpty) ...[
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (int i = 0; i < _visibleChunkCount; i++) ...[
-                        if (i > 0)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8.0),
-                            child: Divider(height: 1),
-                          ),
-                        MixedMathText(
-                          content: _lessonChunks[i],
-                          textStyle: const TextStyle(
-                            fontSize: 20,
-                            height: 1.5,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      ],
-                      if (!isLessonComplete) ...[
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: _showNextChunk,
-                          icon: const Icon(Icons.arrow_downward, size: 16),
-                          label: const Text("Continue Learning"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: AppColors.primary,
-                            elevation: 0,
-                            side: const BorderSide(color: AppColors.primary),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: () {
-                            setState(() => _practiceStarted = true);
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              if (_scrollController.hasClients) {
-                                _scrollController.animateTo(
-                                  _scrollController.position.maxScrollExtent,
-                                  duration: const Duration(milliseconds: 500),
-                                  curve: Curves.easeOut,
-                                );
-                              }
-                            });
-                          },
-                          child: const Text(
-                            "Skip to Practice →",
-                            style: TextStyle(color: Colors.grey, fontSize: 13),
-                          ),
-                        ),
-                      ] else if (!_practiceStarted) ...[
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            setState(() => _practiceStarted = true);
-                            // Auto-scroll to question
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              if (_scrollController.hasClients) {
-                                _scrollController.animateTo(
-                                  _scrollController.position.maxScrollExtent,
-                                  duration: const Duration(milliseconds: 500),
-                                  curve: Curves.easeOut,
-                                );
-                              }
-                            });
-                          },
-                          icon: const Icon(Icons.edit, size: 16),
-                          label: const Text("Start Practice"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
                 const SizedBox(height: 24),
                 const Divider(),
                 const SizedBox(height: 16),
               ],
 
-              // Question Header (HIDDEN UNTIL LESSON COMPLETE)
+              // Practice Content
               if (_practiceStarted) ...[
-                // Level navigation chips (only show if there's history)
-                if (_drillHistory.length > 1) ...[
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: List.generate(_drillHistory.length, (i) {
-                        final isViewing = _viewingLevel == i;
-                        final isAnswered = _answeredLevels[i] == true;
-                        final label = i == 0 ? 'Base' : 'Level $i';
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            label: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(label),
-                                if (isAnswered) ...[
-                                  const SizedBox(width: 4),
-                                  const Icon(
-                                    Icons.check_circle,
-                                    size: 14,
-                                    color: Colors.green,
-                                  ),
-                                ],
-                              ],
-                            ),
-                            selected: isViewing,
-                            selectedColor: AppColors.primary.withValues(
-                              alpha: 0.15,
-                            ),
-                            onSelected: (_) => _switchToLevel(i),
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                Text(
-                  _viewingLevel == 0
+                LevelNavigation(
+                  historyLength: _drillHistory.length,
+                  viewingLevel: _viewingLevel,
+                  currentLevel: _level,
+                  answeredLevels: _answeredLevels,
+                  onLevelSelect: _switchToLevel,
+                ),
+
+                QuestionSection(
+                  title: _viewingLevel == 0
                       ? 'Quick Practice'
                       : (_viewingLevel == _level
                             ? 'Solve This (Harder!)'
                             : 'Past Question (Level $_viewingLevel)'),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
+                  question: _currentDrill.twinQuestion,
                 ),
-                const SizedBox(height: 12),
 
-                // Question Body
-                MixedMathText(
-                  content: _currentDrill.twinQuestion,
-                  textStyle: const TextStyle(
-                    fontSize: 18,
-                    height: 1.5,
-                    fontWeight: FontWeight.w500,
-                  ),
+                QuizOptions(
+                  options: _currentDrill.options,
+                  selectedOption: _selectedOption,
+                  correctAnswer: _currentDrill.correctAnswer,
+                  isAnswered: _isAnswered,
+                  isLoading: _isLoading,
+                  level: _level,
+                  viewingLevel: _viewingLevel,
+                  onOptionSelect: _handleOptionSelect,
+                  onChallenge: _handleChallenge,
+                  onDone: () => Navigator.pop(context),
                 ),
-                const SizedBox(height: 24),
-
-                // Options Grid
-                if (_isLoading)
-                  const Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else
-                  ..._currentDrill.options.map((option) {
-                    final isSelected = _selectedOption == option;
-                    final isCorrectAnswer =
-                        option == _currentDrill.correctAnswer;
-
-                    Color bgColor = Colors.transparent;
-                    Color borderColor = Colors.grey.shade300;
-                    Color textColor = Colors.black87;
-                    IconData? icon;
-                    Color iconColor = Colors.transparent;
-
-                    if (_isAnswered) {
-                      if (isCorrectAnswer) {
-                        bgColor = Colors.green.shade50;
-                        borderColor = Colors.green;
-                        textColor = Colors.green;
-                        icon = Icons.check_circle;
-                        iconColor = Colors.green;
-                      }
-                    } else if (isSelected) {
-                      bgColor = Colors.red.shade50;
-                      borderColor = Colors.red;
-                      textColor = Colors.red;
-                      icon = Icons.cancel;
-                      iconColor = Colors.red;
-                    }
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: InkWell(
-                        onTap: () => _handleOptionSelect(option),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          decoration: BoxDecoration(
-                            color: bgColor,
-                            border: Border.all(color: borderColor),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: MixedMathText(
-                                  content: option,
-                                  textStyle: TextStyle(
-                                    fontSize: 16,
-                                    color: textColor,
-                                    fontWeight:
-                                        (isSelected ||
-                                            (_isAnswered && isCorrectAnswer))
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                              ),
-                              if (icon != null) Icon(icon, color: iconColor),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  }),
-
-                if (_selectedOption != null && !_isAnswered && !_isLoading)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: Center(
-                      child: Text(
-                        "Incorrect, Try Again!",
-                        style: TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                const SizedBox(height: 12),
-
-                // Action Buttons
-                if (_isAnswered &&
-                    _level < 2 &&
-                    !_isLoading &&
-                    _viewingLevel == _level)
-                  ElevatedButton.icon(
-                    onPressed: _handleChallenge,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    icon: const Icon(Icons.bolt),
-                    label: const Text("Challenge Me! (Harder)"),
-                  ),
-
-                if ((_isAnswered && _level == 2) || (_isAnswered && _isLoading))
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text("Great Work! Done."),
-                  ),
               ],
             ],
           ),
