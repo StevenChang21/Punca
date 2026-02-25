@@ -75,6 +75,19 @@ class LanguagePreferences {
     final bool isBM = baseLanguage == BaseLanguage.bm;
 
     switch (chineseLevel) {
+      case ChineseLevel.off:
+        break;
+      default:
+        sb.writeln(
+          'CHINESE RULES: Use ONLY Simplified Chinese (简体中文), NEVER traditional characters. '
+          'Use everyday spoken Chinese that Malaysian Chinese students would understand — '
+          'NOT formal textbook math jargon. For example, use simple words like "加 (add)" '
+          'instead of obscure terms. The Chinese should sound like how a Chinese tuition teacher '
+          'in Malaysia would explain it.',
+        );
+    }
+
+    switch (chineseLevel) {
       case ChineseLevel.mathTerms:
         sb.writeln(
           'CHINESE BRIDGE (Math Terms Only): You MUST add Chinese (中文) translations in parentheses '
