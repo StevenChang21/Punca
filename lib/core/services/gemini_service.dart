@@ -199,11 +199,11 @@ class GeminiService {
       OUTPUT FORMAT (JSON ONLY):
       {
         "drill_title": "Short catchy title e.g. 'Fixing Algebra'",
-        "mini_lesson": "STRIP TEXT. 1. Simple explanation (Use NUMBERS, not abstract concepts like 'tiles'). 2. VISUAL EXAMPLE (Vertical steps). 3. Avoid long analogies. 4. MATH: Wrap ALL math expressions in '\$' (e.g. '\$x^2\$'). 5. NEWLINES: YOU MUST USE \\\\n FOR EACH STEP. 6. LISTS: Start every numbered step (e.g. '1.', '2.') with \\\\n. 7. SVG DIAGRAMS: For geometry/visual topics (triangles, circles, area, perimeter, angles, graphs, number lines), embed a SIMPLE SVG diagram inline using [SVG]<svg>...</svg>[/SVG] markers. Place it WHERE it best aids understanding. SVG rules: max viewBox 250x200, use stroke='#6C63FF' for shapes, fill='none', label sides/angles with <text>, use <rect> for right-angle markers. For NON-VISUAL topics (algebra, arithmetic), do NOT include SVG.\\nExample output:\\n'To expand brackets, multiply the outside number by EACH inside number.'\\nExample:\\n\\\\n1. Multiply first term: \$2 \\\\times x\$\\n\\\\n2. Multiply second term",
+        "mini_lesson": "STRIP TEXT. 1. Simple explanation (Use NUMBERS, not abstract concepts like 'tiles'). 2. VISUAL EXAMPLE (Vertical steps). 3. Avoid long analogies. 4. MATH: Wrap ALL math expressions in '\$' (e.g. '\$x^2\$'). 5. NEWLINES: YOU MUST USE \\n FOR EACH STEP. 6. LISTS: Start every numbered step (e.g. '1.', '2.') with \\n. 7. SVG DIAGRAMS: For geometry/visual topics, embed a SIMPLE SVG inline using [SVG]<svg>...</svg>[/SVG] markers. Place it WHERE it best aids understanding. SVG rules: max viewBox 250x200, use stroke='#6C63FF' for shapes, fill='none', label sides/angles with <text>, use <rect> for right-angle markers. CRITICAL: Do NOT use LaTeX or \$ inside SVG <text> tags! Use plain text only! For NON-VISUAL topics, do NOT include SVG.\nExample output:\n'To expand brackets, multiply the outside number by EACH inside number.'\nExample:\n\n1. Multiply first term: \$2 \\times x\$\n\n2. Multiply second term",
         "vocabulary_bridge": [
           {"term": "Key Term (e.g. 'Perimeter')", "translation": "Chinese Term (e.g. '周长')", "context": "Brief definition in English"}
         ],
-        "twin_question": "A NEW twin question (same concept, different numbers). For geometry/visual topics, embed an [SVG]<svg>...</svg>[/SVG] diagram in the question if it helps (e.g. showing a shape to find area/perimeter). Same SVG rules as mini_lesson.",
+        "twin_question": "Write a single coherent paragraph for the question (same concept, different numbers). MANDATORY: Wrap ALL math in '\$' delimiters, e.g. 'Expand \$(-4x+5)^2\$'. CRITICAL: DO NOT use spaces, tabs, or newlines to visually format or position text (NO ASCII-art style layout). Just write normal sentences. For geometry topics, embed [SVG]<svg>...</svg>[/SVG]. Same SVG rules as mini_lesson: NO LaTeX or \$ inside SVG <text> tags.",
         "options": ["Option A", "Option B", "Option C", "Option D"],
         "correct_option_index": 0, // Integer 0-3
         "explanation": "Step-by-step solution using the KSSM method. Keep it simple."
@@ -218,6 +218,19 @@ class GeminiService {
       final text = response.text;
 
       if (text == null) return null;
+
+      // === FILE LOGGING (PERSISTENT & CONSOLE) ===
+      try {
+        final directory = await getApplicationDocumentsDirectory();
+        final debugFile = File('${directory.path}/gemini_debug_log.json');
+        final timestamp = DateTime.now().toIso8601String();
+        final logEntry =
+            "\n\n=== LOG START (REMEDIATION) [$timestamp] ===\n$text\n=== LOG END ===\n";
+        await debugFile.writeAsString(logEntry, mode: FileMode.append);
+        debugPrint("✅ LOG WRITTEN TO FILE: ${debugFile.absolute.path}");
+      } catch (e) {
+        debugPrint("❌ Failed to write log file: $e");
+      }
 
       // Clean markdown if present
       final cleanText = text.replaceAll(RegExp(r'^```json\n|\n```$'), '');
@@ -264,7 +277,7 @@ class GeminiService {
     OUTPUT FORMAT (JSON ONLY):
     {
       "drill_title": "Level Up Challenge!",
-      "twin_question": "The new HARDER question. For geometry/visual topics, embed an [SVG]<svg>...</svg>[/SVG] diagram if it helps illustrate the problem. SVG rules: max viewBox 250x200, stroke='#6C63FF', fill='none', label values with <text>.",
+      "twin_question": "A single coherent HARDER question paragraph. DO NOT use spaces/newlines to visually format text (NO ASCII-art layout). Write normal sentences with math wrapped in \$. For geometry topics, embed an [SVG]<svg>...</svg>[/SVG] diagram. SVG rules: max viewBox 250x200, stroke='#6C63FF', fill='none', label values with <text>. CRITICAL: NO LaTeX or \$ inside SVG <text> tags! Use plain text.",
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correct_option_index": 0,
       "explanation": "Step-by-step KSSM solution."
@@ -276,6 +289,19 @@ class GeminiService {
       final text = response.text;
 
       if (text == null) return null;
+
+      // === FILE LOGGING (PERSISTENT & CONSOLE) ===
+      try {
+        final directory = await getApplicationDocumentsDirectory();
+        final debugFile = File('${directory.path}/gemini_debug_log.json');
+        final timestamp = DateTime.now().toIso8601String();
+        final logEntry =
+            "\n\n=== LOG START (CHALLENGE) [$timestamp] ===\n$text\n=== LOG END ===\n";
+        await debugFile.writeAsString(logEntry, mode: FileMode.append);
+        debugPrint("✅ LOG WRITTEN TO FILE: ${debugFile.absolute.path}");
+      } catch (e) {
+        debugPrint("❌ Failed to write log file: $e");
+      }
 
       final cleanText = text.replaceAll(RegExp(r'^```json\n|\n```$'), '');
       final json = jsonDecode(cleanText);
