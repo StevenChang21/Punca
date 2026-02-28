@@ -81,12 +81,13 @@ Our core innovation lies in shifting AI from a simple "homework solver" to a **p
 
 ### Testing & Validation Challenges
 1. **Limited Time to Measure Impact**: With only 2 weeks remaining before the hackathon deadline and one full week lost to the Chinese New Year holiday, there was insufficient time to conduct a proper longitudinal study measuring the impact on student learning journeys. A first baseline test was conducted in the **2nd week of February** to gauge initial student performance, but there was no opportunity for a follow-up assessment to measure improvement.
-2. **Responsible MVP Distribution**: As the app is still an MVP and not fully stable, it would have been irresponsible to distribute it directly onto students' personal devices. Instead, Steven conducted a **live in-class demo** where students could see the app in action, and then distributed **paper surveys** to collect their feedback on the concept, UI, and perceived usefulness — ensuring honest student input without the risks of deploying unstable software.
+2. **Responsible MVP Distribution**: As the app is still an MVP and not fully stable, it would have been irresponsible to distribute it directly onto students' personal devices. Instead, Steven conducted a **live in-class demo** where students could see the app in action using one of the student working as example, and then distributed **paper surveys** to collect their feedback on the concept, UI, and perceived usefulness — ensuring honest student input without the risks of deploying unstable software.
 
 ### Future Plans
 - **Gamification**: Add more visual elements, animations, XP/badge systems, and streak tracking to make the remediation process feel more like a game and less like extra homework.
 - **Broader Subject Support**: Expand beyond mathematics to other subjects in the KSSM syllabus.
 - **Longitudinal Impact Tracking**: Conduct proper before-and-after studies with real classrooms to measure the quantitative impact on student grades and confidence.
+- **Teacher-Driven AI Fine-Tuning**: Allow teachers to fine-tune the AI's grading and analysis to be more closely aligned with official KSSM answer schemes and marking rubrics, ensuring the AI's feedback matches exactly how exams are scored in Malaysian schools.
 
 ---
 
@@ -103,7 +104,74 @@ This project showcases a powerful, cross-platform architecture driven by the Goo
 
 ---
 
-## 🚀 Setup Instructions
+## � Implementation Details
+
+### AI Prompt Pipeline Architecture
+Punca AI runs **three distinct Gemini pipelines**, each served by the same `GeminiService` class but with independently crafted prompts:
+
+1. **Assessment Analysis Pipeline** (`analyzeImages`) — Accepts multi-page images or a PDF as multimodal `DataPart` inputs alongside a structured text prompt. The prompt enforces a strict **3-Step Guided Protocol** (Inventory → Analysis → Clustering) so the model processes the student's work systematically rather than jumping to conclusions. A full copy of the KSSM syllabus structure is injected directly into the prompt via `KssmSyllabus.getPrompt()`, giving the model the reference material it needs to map every weakness to a specific Form and Chapter.
+2. **Remediation Drill Pipeline** (`generateRemediation`) — Takes a single `Weakness` object as context (topic, reason, mistake example, correction) and generates a complete micro-remediation package: a mini-lesson, vocabulary bridge, MCQ question, and step-by-step explanation.
+3. **Level-Up Challenge Pipeline** (`generateChallengeDrill`) — Receives the previous drill's question and the weakness context, and generates a progressively harder variant. Level 1 changes numbers (e.g. introduces negatives or fractions); Level 2 changes context (e.g. word problems or inverse tasks).
+
+### Structured JSON Output Enforcement
+All three pipelines use Gemini's native **`responseMimeType: 'application/json'`** setting in the `GenerationConfig`. This forces the model to return valid JSON directly, eliminating the need for regex-based extraction of JSON from markdown code blocks. The expected JSON schema is defined inline within the prompt text itself (e.g., `{"subject": "...", "weaknesses": [...]}`) so the model conforms to our exact field structure. On the client side, the raw response is decoded via `jsonDecode()` and passed directly into Dart model factories (`AssessmentResult.fromAnalysis`, `RemediationDrill.fromJson`).
+
+### Model Fallback Strategy
+The primary model is `gemini-3-flash-preview`. If a **503 (overloaded)** error is encountered during assessment analysis, the service automatically falls back to `gemini-2.0-flash` and retries the same `Content.multi(parts)` request — ensuring the student never sees a blank error screen even under high API load.
+
+### End-to-End Data Flow
+```
+Student Upload → Image Picker / PDF Picker
+        ↓
+Firebase Storage (upload images, get download URLs)
+        ↓
+GeminiService.analyzeImages() → Gemini API (multimodal)
+        ↓
+JSON Response → jsonDecode → AssessmentResult.fromAnalysis()
+        ↓
+FirebaseService.saveAssessment() → Firestore 'assessments' collection
+        ↓  (also)
+FirebaseService.saveWeaknesses() → Firestore 'weaknesses' collection (batch write)
+        ↓
+UI: AnalysisResultScreen renders weakness cards, mistake/correction boxes
+        ↓
+Student taps "Remediation" → GeminiService.generateRemediation()
+        ↓
+RemediationDrill.fromJson() → UI: Mini-lesson chunks, vocabulary bridge, MCQ quiz
+        ↓
+Student answers correctly → GeminiService.generateChallengeDrill() (Level 1, then Level 2)
+```
+
+### Firestore Database Schema
+The app uses **5 top-level Firestore collections**:
+
+| Collection | Key Fields | Purpose |
+|---|---|---|
+| `users` | `uid`, `displayName`, `email`, `role` (student/teacher), `form`, `classroomIds[]` | User profiles and role-based access |
+| `assessments` | `studentId`, `imageUrls[]`, `subject`, `grade`, `syllabusIds[]`, `weaknesses[]` (nested), `remediationDrills[]` (nested), `createdAt` | Complete assessment records with embedded weakness and drill data |
+| `weaknesses` | `studentId`, `topic`, `gap_type`, `reason`, `form_id`, `chapter_id`, `createdAt` | Denormalized weakness entries for fast aggregation queries (teacher analytics) |
+| `classrooms` | `teacherId`, `teacherName`, `name`, `code`, `studentIds[]`, `isDemo` | Classroom membership and access codes |
+| `assignments` | `studentId`, `classroomId`, `status`, `score`, `assignedDate`, drill data | Teacher-assigned homework tracking |
+
+Weaknesses are stored **both** nested inside the `assessments` document (for per-assessment display) **and** as flat documents in the `weaknesses` collection (for cross-assessment aggregation in teacher analytics). Composite Firestore indexes on `(studentId, createdAt)` and `(studentId, classroomId, assignedDate)` enable efficient sorted queries.
+
+### LaTeX Restoration
+A critical implementation challenge: Dart's `jsonDecode` interprets JSON escape sequences literally, so `\frac` becomes a form-feed character + "rac", and `\times` becomes a tab + "imes". The `_restoreLatex()` utility in `assessment_model.dart` reverses this by mapping control characters back to their backslash-prefixed forms (`\t → \\t`, `\f → \\f`, `\b → \\b`, `\r → \\r`), ensuring LaTeX strings render correctly in the `flutter_math_fork` widget.
+
+### Language Preference Injection
+Language settings are stored locally via `SharedPreferences` and managed by the `LanguagePreferences` class. Before every Gemini API call, `LanguagePreferences.promptInstruction` is injected directly into the prompt text. This dynamically constructs a language instruction block based on two axes:
+- **Base Language** — Bahasa Melayu (BM) or English (DLP), controlling the primary language of all AI output.
+- **Chinese Level** (4 tiers) — Off → Math Terms Only (数学词) → Terms + Steps (词+步骤) → Full Bilingual (全双语). Each tier adds progressively more Simplified Chinese translations inline, with explicit prompt rules to ensure everyday spoken Chinese rather than formal textbook jargon.
+
+### Teacher Analytics Pipeline
+On the teacher side, `FirebaseService` aggregates raw student data into actionable insights:
+- **Mastery Grid Calculation** (`getMasteryStats`) — Pre-fills every KSSM Form 1–2 chapter as a key, then overlays the latest assessment score per chapter using `SyllabusPointer` IDs for robust matching (not string-based topic matching). Unattempted chapters return `null` (displayed as grey), while attempted chapters are color-coded by score.
+- **Gap Analysis** (`getGapAnalysis`) — Queries the `weaknesses` collection for a student and computes the percentage distribution across the three gap types (foundation / execution / precision), powering the donut chart on the teacher's student detail view.
+- **Class Heatmap** — Iterates over all students in a classroom, fetches each student's mastery stats, and aggregates them into a class-wide topic × performance matrix for heatmap visualization.
+
+---
+
+## �🚀 Setup Instructions
 
 ### Prerequisites
 Before you begin, ensure you have the following installed:
@@ -154,8 +222,20 @@ Before you begin, ensure you have the following installed:
    - Log in to your Firebase account: `firebase login`
    - Activate FlutterFire CLI: `dart pub global activate flutterfire_cli`
    - Configure your project: `flutterfire configure` (select your corresponding Firebase project).
+   - **Create Composite Indexes**: The app uses Firestore queries that require composite indexes. Go to your [Firebase Console → Firestore → Indexes](https://console.firebase.google.com/) and create the following:
+
+     | Collection | Fields | Order |
+     |---|---|---|
+     | `assessments` | `studentId` (Ascending), `createdAt` (Descending) | — |
+     | `assignments` | `studentId` (Ascending), `assignedDate` (Descending) | — |
+     | `assignments` | `studentId` (Ascending), `classroomId` (Ascending), `assignedDate` (Descending) | — |
+
+     > **Tip**: Alternatively, when you first run the app and trigger these queries, the Firestore console log will show a direct link to create each missing index automatically.
 4. **Install Dependencies and Run**:
    ```bash
    flutter pub get
    flutter run
    ```
+
+> [!IMPORTANT]
+> **For Testing & Judging**: Please use **Form 1 and Form 2 Malaysian KSSM Mathematics** student working/papers only. The AI analysis, syllabus mapping, and remediation drills have been optimized and rigorously tested for these levels. Other forms or syllabi may work but have not been thoroughly validated yet.
